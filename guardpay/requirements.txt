@@ -1,0 +1,14 @@
+# GuardPay — Python Dependencies
+#
+# GuardPay uses only the Python standard library.
+# No pip packages are required.
+#
+# Requirements:
+#   Python 3.7+ (uses secrets, datetime.timezone, f-strings)
+#
+# To verify your Python version:
+#   python3 --version
+#
+# Vendored frontend libraries (in static/):
+#   - jsPDF (jspdf.umd.min.js) — PDF generation
+#   - html2canvas-pro (html2canvas-pro.min.js) — DOM rasterization

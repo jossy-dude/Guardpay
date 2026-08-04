@@ -1,0 +1,20 @@
+# Database
+guardpay.db
+guardpay.db-journal
+guardpay.db-wal
+guardpay.db-shm
+guardpay/backups/
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Excel (generated)
+GuardPay.xlsx
+
+# OS
+.DS_Store
+Thumbs.db

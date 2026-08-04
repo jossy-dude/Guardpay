@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="app_title">GuardPay — Security Fund Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a href="#mainContent" class="skip-link" data-i18n="skip_to_content">Skip to content</a>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="masthead-top">
+    <div class="masthead-id">
+      <div>
+        <div class="kicker" data-i18n="kicker">Neighborhood Security Fund</div>
+        <h1><span data-i18n="subtitle">The Monthly</span> <em>Ledger</em></h1>
+      </div>
+      <svg class="seal" viewBox="0 0 70 70" width="66" height="66" role="img" data-i18n-aria="seal_label">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="var(--border)" stroke-width="4"/>
+        <circle id="sealRing" cx="35" cy="35" r="29" fill="none" stroke="var(--green)" stroke-width="4" stroke-linecap="round" stroke-dasharray="182" stroke-dashoffset="182" transform="rotate(-90 35 35)"/>
+        <text id="sealPct" class="seal-pct" x="35" y="36" text-anchor="middle" dominant-baseline="middle">0%</text>
+      </svg>
+    </div>
+    <div class="edition">
+      <div class="issue" id="editionMonth"></div>
+      <div id="editionIssue"></div>
+    </div>
+  </div>
+  <nav class="topnav">
+    <div class="topnav-links">
+      <a href="#!" class="active" data-view="dashboard" data-i18n="nav_dashboard">Dashboard</a>
+      <a href="#!" data-view="history" data-i18n="nav_analytics">Analytics &amp; History</a>
+      <a href="#!" data-view="data" data-i18n="nav_data">Data</a>
+      <a href="#!" data-view="settings" data-i18n="nav_settings">Settings</a>
+    </div>
+    <button class="bell-btn" id="bellBtn" data-i18n-aria="nav_reminders" data-i18n-title="nav_reminders">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span class="bell-count" id="bellCount" aria-live="polite">0</span>
+    </button>
+  </nav>
+</header>
+
+<main class="wrap" id="mainContent">
+
+  <!-- DATELINE -->
+  <section class="dateline animate-in d1" data-od-id="stats">
+    <div class="dl-item">
+      <span class="dl-label" data-i18n="stat_collected">Total collected</span>
+      <span class="dl-num green"><span class="cur" id="statCurrency">ETB</span><span class="num" id="statCollected" data-count="0">0</span></span>
+      <span class="compare up" id="collectedCompare"></span>
+    </div>
+    <div class="dl-item">
+      <span class="dl-label" data-i18n="stat_outstanding">Outstanding</span>
+      <span class="dl-num danger"><span class="cur" id="statCurrency2">ETB</span><span class="num" id="statOutstanding" data-count="0">0</span></span>
+      <span class="compare flat" id="outstandingNote">—</span>
+    </div>
+    <div class="dl-item">
+      <span class="dl-label" data-i18n="stat_completion">Completion</span>
+      <span class="dl-num accent"><span class="num" id="statPct">0</span><span style="font-size:.5em;color:var(--muted)">%</span></span>
+      <span class="compare flat" id="pctNote">—</span>
+    </div>
+    <div class="dl-item">
+      <span class="dl-label" data-i18n="stat_timeliness">Avg timeliness</span>
+      <span class="dl-num"><span class="num" id="statScore">0</span><span style="font-size:.5em;color:var(--muted)">/ 100</span></span>
+      <span class="compare flat" id="scoreNote">—</span>
+    </div>
+  </section>
+
+  <!-- COMPLETION BAND -->
+  <section class="completion-band animate-in d2" data-od-id="completion">
+    <div class="cb-head"><span data-i18n="cb_households">Household completion</span><span id="stripPaid">— paid</span></div>
+    <div class="tick-strip" id="tickStrip"></div>
+    <div class="prog-squares" id="progSquares"></div>
+    <div class="cb-head" style="margin-top:4px"><span id="stripPct">—% complete</span><span id="houseCount">0 households</span></div>
+  </section>
+
+  <!-- CALENDAR (hero centerpiece) -->
+  <section class="animate-in d3 calendar-hero" data-od-id="calendar">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="cal_rhythm">Payment rhythm</div>
+        <div class="sec-title" data-i18n="cal_title">The Collection Calendar</div>
+      </div>
+      <div class="cal-nav">
+        <button id="prevMonth" data-i18n-aria="cal_prev_month">‹</button>
+        <div>
+          <div class="cal-month" id="calMonth"></div>
+          <div class="cal-year"><span id="calYear"></span> · <span id="calCount">0</span> <span data-i18n="cal_count_paid">paid</span></div>
+        </div>
+        <button id="nextMonth" data-i18n-aria="cal_next_month">›</button>
+        <button id="prevYear" data-i18n-aria="cal_prev_year" style="margin-left:6px">«</button>
+        <button id="nextYear" data-i18n-aria="cal_next_year">»</button>
+      </div>
+    </div>
+    <div class="heatmap" id="heatmap"></div>
+    <div class="heat-legend">
+      <span data-i18n="cal_few">Few</span>
+      <span class="sw" style="background:var(--heat-1)"></span>
+      <span class="sw" style="background:var(--heat-2)"></span>
+      <span class="sw" style="background:var(--heat-3)"></span>
+      <span class="sw" style="background:var(--heat-4)"></span>
+      <span class="sw" style="background:var(--heat-5)"></span>
+      <span data-i18n="cal_many">Many</span>
+    </div>
+  </section>
+
+  <div class="grid">
+    <!-- MAIN -->
+    <div class="col-main">
+
+      <!-- NEIGHBOR LEDGER -->
+      <section class="animate-in d4" data-od-id="neighbors">
+        <div class="sec-head">
+          <div>
+            <div class="sec-sub" data-i18n="sec_register">Household register</div>
+            <div class="sec-title" data-i18n="sec_who_paid">Who Has Paid</div>
+          </div>
+          <div class="filters">
+            <div class="search-wrap">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <input type="text" id="ledgerSearch" data-i18n-placeholder="search_placeholder" placeholder="Search house or resident…" autocomplete="off" data-i18n-aria="search_label">
+            </div>
+            <button class="filter-btn active" data-filter="recent" aria-pressed="true" data-i18n="filter_recent">Recent</button>
+            <button class="filter-btn" data-filter="score" aria-pressed="false" data-i18n="filter_score">Score</button>
+            <button class="filter-btn" data-filter="house" aria-pressed="false" data-i18n="filter_house">House</button>
+            <button class="add-btn" id="openAdd" data-i18n-aria="btn_add_label">＋ Add</button>
+          </div>
+        </div>
+        <div class="status-filter-row" role="group" aria-label="Filter by status">
+          <button class="status-filter-btn active" data-status="all" aria-pressed="true" data-i18n="filter_all">All</button>
+          <button class="status-filter-btn" data-status="paid" aria-pressed="false" data-i18n="filter_paid">Paid</button>
+          <button class="status-filter-btn" data-status="unpaid" aria-pressed="false" data-i18n="filter_unpaid">Unpaid</button>
+          <button class="status-filter-btn" data-status="flagged" aria-pressed="false" data-i18n="filter_flagged">Flagged</button>
+        </div>
+        <table class="ledger-table" data-i18n-aria="sec_register">
+          <thead>
+            <tr><th scope="col" data-i18n="th_house">House</th><th scope="col" data-i18n="th_resident">Resident</th><th scope="col" class="score-col" data-i18n="th_score">Score</th><th scope="col" data-i18n="th_status">Status</th><th scope="col" style="text-align:right" data-i18n="th_action">Action</th></tr>
+          </thead>
+          <tbody id="ledgerBody"></tbody>
+        </table>
+      </section>
+
+      <!-- LEADERBOARD -->
+      <section class="animate-in d4" data-od-id="leaderboard" style="display:none">
+        <div class="sec-head">
+          <div>
+            <div class="sec-sub" data-i18n="sec_consistency">Consistency ranking</div>
+            <div class="sec-title" data-i18n="sec_leaderboard">Leaderboard</div>
+          </div>
+        </div>
+        <div class="leaderboard-list" id="leaderboardList"></div>
+      </section>
+
+      <!-- HISTORY TABLE -->
+      <section class="animate-in d4" data-od-id="history-table" style="display:none">
+        <div class="sec-head">
+          <div>
+            <div class="sec-sub" data-i18n="sec_monthly_ledger">Monthly ledger</div>
+            <div class="sec-title" data-i18n="sec_payment_history">Payment History</div>
+          </div>
+          <div class="history-nav">
+            <button class="filter-btn" id="histPrev">‹</button>
+            <span id="histMonth" style="font-family:var(--font-display);font-weight:600"></span>
+            <button class="filter-btn" id="histNext">›</button>
+          </div>
+        </div>
+        <table class="ledger-table" aria-label="Payment history">
+          <thead>
+            <tr><th scope="col" data-i18n="th_house">House</th><th scope="col" data-i18n="th_status">Status</th><th scope="col" data-i18n="th_date">Paid Date</th><th scope="col" data-i18n="th_amount">Amount</th><th scope="col" data-i18n="th_action">Action</th></tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </section>
+
+      <!-- YEAR SUMMARY -->
+      <section class="animate-in d1" data-od-id="year-summary" style="display:none">
+        <div class="sec-head">
+          <div>
+            <div class="sec-sub" data-i18n="sec_year_review">Year in review</div>
+            <div class="sec-title" data-i18n="sec_annual_summary">Annual Summary</div>
+          </div>
+          <div class="cal-nav">
+            <button class="filter-btn" id="anaPrevYear" aria-label="Previous year">‹</button>
+            <span id="anaYearLabel" style="font-family:var(--font-display);font-weight:600;min-width:54px;text-align:center"></span>
+            <button class="filter-btn" id="anaNextYear" aria-label="Next year">›</button>
+          </div>
+        </div>
+        <div class="summary-cards" id="summaryCards"></div>
+      </section>
+
+      <!-- MONTHLY COLLECTION TREND -->
+      <section class="animate-in d2" data-od-id="year-chart" style="display:none">
+        <div class="sec-head">
+          <div>
+            <div class="sec-sub" data-i18n="sec_cash_flow">Cash flow</div>
+            <div class="sec-title" data-i18n="sec_monthly_collection">Monthly Collection</div>
+          </div>
+          <div class="chart-legend">
+            <span class="cl-dot" style="background:var(--green)"></span> <span data-i18n="sec_fully_collected">Fully collected</span>
+            <span class="cl-dot" style="background:var(--accent);margin-left:12px"></span> <span data-i18n="sec_partial">Partial</span>
+          </div>
+        </div>
+        <div class="chart-wrap" id="yearChart"></div>
+        <div class="chart-totals" id="yearChartTotals"></div>
+      </section>
+
+      <!-- ON-TIME RATE TREND -->
+      <section class="animate-in d3" data-od-id="ontime-chart" style="display:none">
+        <div class="sec-head">
+          <div>
+            <div class="sec-sub" data-i18n="sec_reliability">Reliability</div>
+            <div class="sec-title" data-i18n="sec_ontime_rate">On-Time Payment Rate</div>
+          </div>
+        </div>
+        <div class="chart-wrap" id="onTimeChart"></div>
+        <div class="chart-totals" id="onTimeTotals"></div>
+      </section>
+
+      <!-- PER-HOUSEHOLD SCORECARDS -->
+      <section class="animate-in d4" data-od-id="scorecards" style="display:none">
+        <div class="sec-head">
+          <div>
+            <div class="sec-sub" data-i18n="sec_at_glance">At a glance</div>
+            <div class="sec-title" data-i18n="sec_scorecards">Household Scorecards</div>
+          </div>
+          <button class="export-btn wide-btn" id="downloadYearCsv">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-i18n="toast_yearly_csv">Download yearly CSV</span>
+          </button>
+        </div>
+        <div class="scorecard-grid" id="scorecardGrid"></div>
+      </section>
+
+    </div>
+
+    <!-- RAIL -->
+    <div class="col-rail">
+      <section class="guard-card animate-in d5" data-od-id="guard-summary">
+        <div class="guard-id">
+          <div class="guard-avatar">
+            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+              <path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5l-8-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="m8.5 12 2.3 2.3L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h4 id="guardName" data-i18n="guard_title">Guard Settlement</h4>
+            <div class="meta" id="guardMeta" data-i18n="guard_meta">Night watch</div>
+          </div>
+        </div>
+        <div class="guard-row"><span class="label" data-i18n="guard_monthly_collected">Monthly collected</span><span class="value green num" id="guardCollected">0</span></div>
+        <div class="guard-row"><span class="label" data-i18n="guard_salary">Guard salary</span><span class="value num" id="guardSalary">0</span></div>
+        <div class="guard-divider"></div>
+        <div class="guard-row"><span class="label" data-i18n="guard_surplus">Surplus this month</span><span class="value accent num" id="guardSurplus">0</span></div>
+
+        <div class="guard-divider"></div>
+        <div class="sec-sub" style="margin:14px 0 6px" data-i18n="guard_timeliness">Timeliness of payment</div>
+        <div class="timi-dots" id="timiDots"></div>
+        <div class="timi-num" id="timiNum">0<small> / 100 avg score</small></div>
+
+        <div class="spark-wrap">
+          <div class="sec-sub" style="margin:18px 0 4px" data-i18n="guard_fund_movement">Fund movement · this year</div>
+          <div id="spark"></div>
+        </div>
+
+        <button class="export-btn" id="openExport">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="guard_export">Export report</span>
+        </button>
+
+        <div class="guard-divider" style="margin:16px 0"></div>
+        <div class="sec-sub" style="margin-bottom:10px" data-i18n="guard_quick_actions">Quick actions</div>
+        <button class="qa-btn" id="remindAll">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M4 5h16v10H8l-4 4V5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <span data-i18n="guard_remind_all">Remind all unpaid</span>
+        </button>
+        <button class="qa-btn" id="markAll">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="guard_mark_all">Mark everyone paid</span>
+        </button>
+        <button class="qa-btn" id="payGuardBtn">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5l-8-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <span data-i18n="guard_record_payment">Record guard payment</span>
+        </button>
+       </section>
+     </div>
+   </div>
+</main>
+
+<footer class="site-footer">
+  <span data-i18n="footer_guardpay">GuardPay · self-hosted neighborhood security fund ledger</span>
+  <span data-i18n="footer_privacy">Your data stays on this computer.</span>
+</footer>
+
+<!-- REMINDER PANEL -->
+<div class="reminder-panel" id="reminderPanel" role="dialog" aria-modal="true" aria-label="Follow-up reminders">
+  <div class="reminder-sheet">
+    <div class="reminder-head">
+       <div>
+        <div class="kick" data-i18n="rem_followups">Follow-ups</div>
+        <h3 data-i18n="rem_people">People to remind</h3>
+      </div>
+      <button class="drawer-close" id="reminderClose" data-i18n-aria="rem_close">×</button>
+    </div>
+    <div class="reminder-list" id="reminderList"></div>
+    <div class="reminder-foot">
+      <button class="btn-ghost" id="clearAllReminders" data-i18n="rem_clear_all">Clear all</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="overlay export-overlay" id="exportOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+      <div class="modal-head">
+        <h3 id="exportTitle" data-i18n="export_title">Export report</h3>
+        <button class="modal-close" id="closeExport">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <span class="gl" data-i18n="export_format">Format</span>
+          <div class="fmt-row" id="fmtRow">
+            <span class="fmt-chip active" data-fmt="pdf" data-i18n="export_pdf">PDF report</span>
+            <span class="fmt-chip" data-fmt="csv" data-i18n="export_csv">CSV spreadsheet</span>
+            <span class="fmt-chip" data-fmt="json" data-i18n="export_json">JSON backup</span>
+          </div>
+          <div class="fmt-hint" id="fmtHint" data-i18n="export_format_hint">Choose a polished printable report, a spreadsheet, or a complete data backup.</div>
+        </div>
+        <div class="field-group pdf-tpl-wrap show" id="pdfTplGroup">
+          <span class="gl" data-i18n="export_report_template">Report template</span>
+          <div class="tpl-grid tpl-grid-3" id="pdfTplGrid">
+            <div class="tpl-opt active" data-pdf="monthly" role="radio" tabindex="0" aria-checked="true"><div class="t" data-i18n="export_tpl_monthly">Monthly Ledger</div><div class="d" data-i18n="export_tpl_monthly_desc">Full household register with status</div></div>
+            <div class="tpl-opt" data-pdf="guard" role="radio" tabindex="0" aria-checked="false"><div class="t" data-i18n="export_tpl_guard">Guard Settlement</div><div class="d" data-i18n="export_tpl_guard_desc">Fund in/out, salary, surplus</div></div>
+            <div class="tpl-opt" data-pdf="scorecard" role="radio" tabindex="0" aria-checked="false"><div class="t" data-i18n="export_tpl_scorecard">Community Scorecard</div><div class="d" data-i18n="export_tpl_scorecard_desc">Per-household reliability grid</div></div>
+            <div class="tpl-opt" data-pdf="outstanding" role="radio" tabindex="0" aria-checked="false"><div class="t" data-i18n="export_tpl_outstanding">Outstanding Notice</div><div class="d" data-i18n="export_tpl_outstanding_desc">Unpaid households reminder</div></div>
+            <div class="tpl-opt" data-pdf="annual" role="radio" tabindex="0" aria-checked="false"><div class="t" data-i18n="export_tpl_annual">Annual Summary</div><div class="d" data-i18n="export_tpl_annual_desc">12-month trend + leaderboard</div></div>
+          </div>
+        </div>
+        <div class="field-group" id="typeGroup" style="display:none">
+          <span class="gl" data-i18n="export_rows">Rows</span>
+          <div class="tpl-grid">
+            <div class="tpl-opt active" data-type="monthly" role="radio" tabindex="0" aria-checked="true"><div class="t" data-i18n="export_this_month">This month</div><div class="d" data-i18n="export_this_month_desc">One row per household</div></div>
+            <div class="tpl-opt" data-type="full" role="radio" tabindex="0" aria-checked="false"><div class="t" data-i18n="export_full_history">Full history</div><div class="d" data-i18n="export_full_history_desc">Every month, every household</div></div>
+          </div>
+        </div>
+        <div class="field-group" id="fieldsGroup" style="display:none">
+          <span class="gl" data-i18n="export_include_columns">Include columns</span>
+          <div class="field-cols" id="fieldCols">
+            <label><input type="checkbox" data-field="house" checked> <span data-i18n="export_col_house">House number</span></label>
+            <label><input type="checkbox" data-field="name" checked> <span data-i18n="export_col_name">Resident name</span></label>
+            <label><input type="checkbox" data-field="amount" checked> <span data-i18n="export_col_amount">Amount</span></label>
+            <label><input type="checkbox" data-field="paid" checked> <span data-i18n="export_col_paid">Paid status</span></label>
+            <label><input type="checkbox" data-field="score" checked> <span data-i18n="export_col_score">Timeliness score</span></label>
+            <label><input type="checkbox" data-field="date"> <span data-i18n="export_col_date">Payment date</span></label>
+            <label><input type="checkbox" data-field="total"> <span data-i18n="export_col_total">Total paid</span></label>
+            <label><input type="checkbox" data-field="unpaid"> <span data-i18n="export_col_unpaid">Outstanding</span></label>
+          </div>
+        </div>
+        <div class="field-group" id="pdfPreviewGroup" style="display:none">
+          <div class="preview-label"><span data-i18n="export_live_preview">Live preview ·</span> <span id="previewTplName">Monthly Ledger</span></div>
+          <div id="pdfPreview" class="pdf-preview"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="cancelExport" data-i18n="export_cancel">Cancel</button>
+        <button class="btn-primary" id="doExport" data-i18n="export_generate">Generate &amp; download</button>
+      </div>
+  </div>
+</div>
+
+<!-- ADD HOUSEHOLD MODAL -->
+<div class="overlay" id="addOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+      <div class="modal-head">
+        <h3 id="addTitle" data-i18n="add_title">Add household</h3>
+        <button class="modal-close" id="closeAdd">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="tpl-grid" id="addTabs" style="margin-bottom:6px">
+          <div class="tpl-opt active" data-add="single" role="radio" tabindex="0" aria-checked="true"><div class="t" data-i18n="add_single">Single</div><div class="d" data-i18n="add_single_desc">One household</div></div>
+          <div class="tpl-opt" data-add="bulk" role="radio" tabindex="0" aria-checked="false"><div class="t" data-i18n="add_bulk">Bulk paste</div><div class="d" data-i18n="add_bulk_desc">Many at once</div></div>
+        </div>
+        <div id="addSingle">
+          <div class="field-group">
+            <span class="gl" data-i18n="add_house_number">House number</span>
+            <input class="add-input" id="addHouse" type="text" inputmode="numeric" data-i18n-placeholder="add_house_ph" placeholder="e.g. 131" autocomplete="off">
+          </div>
+          <div class="field-group">
+            <span class="gl" data-i18n="add_resident_name">Resident name</span>
+            <input class="add-input" id="addName" type="text" data-i18n-placeholder="add_name_ph" placeholder="e.g. Lensa Bekele" autocomplete="off">
+          </div>
+          <div class="field-group">
+            <span class="gl" data-i18n="add_monthly_fee">Monthly fee</span>
+            <input class="add-input" id="addFee" type="number" placeholder="4000" value="4000" min="0">
+          </div>
+        </div>
+        <div id="addBulk" style="display:none">
+          <div class="field-group">
+            <span class="gl" data-i18n="add_bulk_label">Paste list — one per line</span>
+            <textarea class="add-textarea" id="addBulkText" spellcheck="false" placeholder="131 Lensa Bekele&#10;132 - Dawit Taye&#10;133, Hana Elias"></textarea>
+            <div class="editor-hint" data-i18n="add_bulk_hint">Format: house name — leading number is the house #, rest is the name. Fee defaults to 500.</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="cancelAdd" data-i18n="add_cancel">Cancel</button>
+        <button class="btn-primary" id="doAdd" data-i18n="add_submit">Add household</button>
+      </div>
+  </div>
+</div>
+
+<!-- GUARD PAYMENT MODAL -->
+<div class="overlay" id="guardOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="guardTitle">
+      <div class="modal-head">
+        <h3 id="guardTitle" data-i18n="guard_pay_title">Record guard payment</h3>
+        <button class="modal-close" id="closeGuard">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <span class="gl" data-i18n="guard_pay_month">Month</span>
+          <input class="add-input" id="guardMonth" type="month">
+        </div>
+        <div class="field-group">
+          <span class="gl" data-i18n="guard_pay_amount">Amount paid</span>
+          <input class="add-input" id="guardAmount" type="number" placeholder="30000" min="0" data-i18n-placeholder="guard_amount_ph">
+        </div>
+        <div class="field-group">
+          <span class="gl" data-i18n="guard_pay_date">Payment date</span>
+          <input class="add-input" id="guardDate" type="date">
+        </div>
+        <div class="field-group">
+          <span class="gl" data-i18n="guard_pay_method">Method</span>
+          <select class="add-input" id="guardMethod">
+            <option value="transfer" data-i18n="guard_pay_bank">Bank Transfer</option>
+            <option value="cash" data-i18n="guard_pay_cash">Cash</option>
+            <option value="mobile" data-i18n="guard_pay_mobile">Mobile Money</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <span class="gl" data-i18n="guard_pay_note">Note (optional)</span>
+          <input class="add-input" id="guardNote" type="text" data-i18n-placeholder="guard_pay_note_ph" placeholder="Any notes...">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="cancelGuard" data-i18n="guard_pay_cancel">Cancel</button>
+        <button class="btn-primary" id="doGuard" data-i18n="guard_pay_submit">Record payment</button>
+      </div>
+  </div>
+</div>
+
+<!-- EDIT HOUSEHOLD MODAL -->
+<div class="overlay" id="editOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <div class="modal-head">
+        <h3 id="editTitle" data-i18n="edit_title">Edit household</h3>
+        <button class="modal-close" id="closeEdit">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="edit-meta">
+          <span class="edit-chip" id="editMetaScore">0 pts</span>
+          <span class="edit-chip" id="editMetaStreak">no streak</span>
+          <span class="edit-chip" id="editMetaRate">0% on-time</span>
+        </div>
+        <div class="settings-grid">
+          <div class="field-group">
+            <span class="gl" data-i18n="edit_house_number">House number</span>
+            <input class="add-input" id="editHouse" type="text" inputmode="numeric" autocomplete="off">
+          </div>
+          <div class="field-group">
+            <span class="gl" data-i18n="edit_resident_name">Resident name</span>
+            <input class="add-input" id="editName" type="text" autocomplete="off">
+          </div>
+          <div class="field-group">
+            <span class="gl" data-i18n="edit_monthly_fee">Monthly fee</span>
+            <input class="add-input" id="editFee" type="number" min="0">
+          </div>
+          <div class="field-group">
+            <span class="gl" data-i18n="edit_paid_date">This month's paid date</span>
+            <input class="add-input" id="editPaidDate" type="date">
+          </div>
+          <div class="field-group">
+            <span class="gl" data-i18n="edit_amount">This month's amount</span>
+            <input class="add-input" id="editAmount" type="number" min="0" data-i18n-placeholder="edit_amount_ph" placeholder="defaults to fee">
+          </div>
+        </div>
+        <div class="field-group">
+          <span class="gl" data-i18n="edit_notes">Notes</span>
+          <textarea class="add-input" id="editNotes" spellcheck="false" data-i18n-placeholder="edit_notes_ph" placeholder="Optional notes about this household…" style="min-height:70px"></textarea>
+        </div>
+        <div class="edit-quick">
+          <button class="act-btn" id="editToggleStatus" data-paid="0" data-i18n="edit_mark_paid">Mark paid</button>
+          <button class="act-btn" id="editToggleFlag" data-flagged="0" data-i18n="edit_flag">☆ Flag to follow up</button>
+        </div>
+      </div>
+      <div class="modal-foot spread">
+        <button class="btn-danger" id="deleteEdit" data-i18n="edit_remove">Remove household</button>
+        <div style="display:flex;gap:10px">
+          <button class="btn-ghost" id="cancelEdit" data-i18n="edit_cancel">Cancel</button>
+          <button class="btn-primary" id="doEdit" data-i18n="edit_save">Save changes</button>
+        </div>
+      </div>
+  </div>
+</div>
+
+<!-- DETAIL DRAWER -->
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Household detail">
+  <div class="drawer-head">
+      <div>
+        <div class="kick" id="drawerHouse" data-i18n="drawer_household">Household</div>
+        <h3 id="drawerName">—</h3>
+      </div>
+      <button class="drawer-close" id="drawerClose" data-i18n-aria="drawer_close">×</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- DATA VIEW -->
+<div class="data-view" id="dataView" style="display:none">
+  <section class="animate-in d1">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="data_subtitle">Database</div>
+        <div class="sec-title" data-i18n="data_title">Data Management</div>
+      </div>
+      <div class="data-tools">
+        <button class="filter-btn" id="dataAddBtn" data-i18n="data_add">+ Add</button>
+        <button class="filter-btn" id="dataExportCsv" data-i18n="data_export_csv">CSV</button>
+        <button class="filter-btn" id="dataRefreshBtn" data-i18n="data_refresh" title="Refresh">↻</button>
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="data-summary" id="dataSummary">
+      <div class="data-summary-card"><span class="data-summary-num" id="dataTotalHouses">0</span><span class="data-summary-label" data-i18n="data_summary_houses">houses</span></div>
+      <div class="data-summary-card"><span class="data-summary-num" id="dataActiveHouses">0</span><span class="data-summary-label" data-i18n="data_summary_active">active</span></div>
+      <div class="data-summary-card"><span class="data-summary-num" id="dataTotalFees">0</span><span class="data-summary-label" data-i18n="data_summary_fees">total fees</span></div>
+      <div class="data-summary-card"><span class="data-summary-num" id="dataAvgFee">0</span><span class="data-summary-label" data-i18n="data_summary_avg">avg fee</span></div>
+      <div class="data-summary-card"><span class="data-summary-num" id="dataPaidThisMonth">0</span><span class="data-summary-label" data-i18n="data_summary_paid">paid this month</span></div>
+      <div class="data-summary-card"><span class="data-summary-num" id="dataUnpaidThisMonth">0</span><span class="data-summary-label" data-i18n="data_summary_unpaid">unpaid</span></div>
+    </div>
+
+    <div class="data-filter-row">
+      <button class="status-filter-btn active" data-filter="active" data-i18n="data_filter_active">Active</button>
+      <button class="status-filter-btn" data-filter="all" data-i18n="data_filter_all">All</button>
+      <button class="status-filter-btn" data-filter="inactive" data-i18n="data_filter_inactive">Inactive</button>
+      <button class="status-filter-btn" data-filter="paid" data-i18n="data_filter_paid">Paid</button>
+      <button class="status-filter-btn" data-filter="unpaid" data-i18n="data_filter_unpaid">Unpaid</button>
+      <span class="data-search-wrap">
+        <input class="add-input" id="dataSearch" type="text" data-i18n-placeholder="data_search_ph" placeholder="Search...">
+      </span>
+    </div>
+    <div class="data-table-wrap">
+      <table class="data-table" id="dataTable">
+        <thead>
+          <tr>
+            <th class="data-col-num sortable" data-sort="num"># <span class="sort-arrow"></span></th>
+            <th class="data-col-house sortable" data-sort="house">House <span class="sort-arrow"></span></th>
+            <th class="data-col-name sortable" data-sort="name">Name <span class="sort-arrow"></span></th>
+            <th class="data-col-fee sortable" data-sort="fee">Fee <span class="sort-arrow"></span></th>
+            <th class="data-col-paid" data-i18n="data_col_paid">Paid?</th>
+            <th class="data-col-pay" data-i18n="data_col_last_pay">Last Pay</th>
+            <th class="data-col-notes" data-i18n="data_col_notes">Notes</th>
+            <th class="data-col-actions" data-i18n="data_col_actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+    <div class="data-empty" id="dataEmpty" data-i18n="data_empty">No houses found.</div>
+  </section>
+</div>
+
+<!-- SETTINGS VIEW -->
+<div class="settings-view" id="settingsView" style="display:none">
+  <section class="animate-in d0" style="margin-bottom:24px;border:1px solid var(--border);border-radius:14px;padding:18px 20px">
+    <div class="sec-head" style="margin-bottom:6px">
+      <div>
+        <div class="sec-sub" data-i18n="import_sub">Bank SMS import</div>
+        <div class="sec-title" data-i18n="import_title">Import &amp; review CBE credits</div>
+      </div>
+      <button class="btn-accent" id="openImportBtn" style="padding:10px 20px;font-size:14px" data-i18n="import_button">⬆ Import SMS backup</button>
+    </div>
+    <p class="settings-note" style="margin:0" data-i18n="import_desc">Upload your CBE SMS backup (XML from SMS Backup &amp; Restore) to review every credit into your account and turn them into house-fee payments. Existing pending credits are replaced by the new import.</p>
+  </section>
+
+  <section class="animate-in d1">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="settings_configuration">Configuration</div>
+        <div class="sec-title" data-i18n="settings_title">Settings</div>
+      </div>
+    </div>
+    <div class="field-group theme-picker-group" style="margin-bottom:18px">
+      <span class="gl" data-i18n="settings_theme">Theme</span>
+      <div class="theme-row" id="themeRow">
+        <button type="button" class="theme-opt" data-theme="light"><span class="swatch"></span><span data-i18n="settings_theme_light">Light</span></button>
+        <button type="button" class="theme-opt" data-theme="dark"><span class="swatch"></span><span data-i18n="settings_theme_dark">Dark</span></button>
+        <button type="button" class="theme-opt" data-theme="sepia"><span class="swatch"></span><span data-i18n="settings_theme_sepia">Sepia</span></button>
+        <button type="button" class="theme-opt" data-theme="midnight"><span class="swatch"></span><span data-i18n="settings_theme_midnight">Midnight</span></button>
+        <button type="button" class="theme-opt" data-theme="forest"><span class="swatch"></span><span data-i18n="settings_theme_forest">Forest</span></button>
+      </div>
+    </div>
+    <div class="field-group lang-picker-group" style="margin-bottom:18px">
+      <span class="gl" data-i18n="settings_language">Language</span>
+      <div class="lang-row" id="langRow">
+        <button type="button" class="lang-opt" data-lang="en">English</button>
+        <button type="button" class="lang-opt" data-lang="am">አማርኛ</button>
+      </div>
+    </div>
+    <div class="settings-grid">
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_neighborhood_name">Neighborhood name</span>
+        <input class="add-input" id="settingName" type="text" data-i18n-placeholder="settings_neighborhood_ph" placeholder="Neighborhood Watch">
+      </div>
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_currency">Currency</span>
+        <input class="add-input" id="settingCurrency" type="text" data-i18n-placeholder="settings_currency_ph" placeholder="ETB" maxlength="6">
+      </div>
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_due_day">Monthly due day</span>
+        <input class="add-input" id="settingDueDay" type="number" min="1" max="28" placeholder="5">
+      </div>
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_guard_name">Guard name</span>
+        <input class="add-input" id="settingGuardName" type="text" data-i18n-placeholder="settings_guard_name_ph" placeholder="Night Watch Guard">
+      </div>
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_guard_salary">Guard salary</span>
+        <input class="add-input" id="settingGuardSalary" type="number" min="0" data-i18n-placeholder="settings_guard_salary_ph" placeholder="30000">
+      </div>
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_default_fee">Default fee</span>
+        <input class="add-input" id="settingDefaultFee" type="number" min="0" data-i18n-placeholder="settings_default_fee_ph" placeholder="4000">
+      </div>
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_guard_account">Guard CBE account (last digits)</span>
+        <input class="add-input" id="settingGuardAccount" type="text" inputmode="numeric" maxlength="6" placeholder="3325">
+      </div>
+      <div class="field-group">
+        <span class="gl" data-i18n="settings_start_date">Start parsing from</span>
+        <input class="add-input" id="settingStartDate" type="date">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="btn-primary" id="saveSettings" data-i18n="settings_save">Save settings</button>
+      <button class="btn-ghost" id="cancelSettings" data-i18n="settings_cancel">Cancel</button>
+    </div>
+    <p class="settings-note" id="smsSettingsNote" style="margin-top:10px"></p>
+  </section>
+
+  <section class="animate-in d2" style="margin-top:24px">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="settings_aliases_sub">Name linking</div>
+        <div class="sec-title" data-i18n="settings_aliases">House aliases (payer names)</div>
+      </div>
+    </div>
+    <p class="settings-note" style="margin-top:0" data-i18n="settings_aliases_desc">One household can pay from several different names (e.g. "Abeba Chala", "Pale Turner", "Breket"). Link every name to a house so the SMS importer recognises them automatically.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <select class="add-input" id="aliasHouse" style="width:auto;max-width:240px"></select>
+      <input class="add-input" id="aliasName" type="text" data-i18n-placeholder="settings_aliases_ph" placeholder="payer name..." style="flex:1;min-width:180px" list="aliasSuggestList">
+      <datalist id="aliasSuggestList"></datalist>
+      <button class="btn-primary" id="addAlias" data-i18n="settings_aliases_add">+ Link name</button>
+    </div>
+    <div id="aliasList" class="backup-list" style="margin-top:14px">
+      <div class="backup-empty" data-i18n="settings_aliases_empty">No aliases yet.</div>
+    </div>
+  </section>
+
+  <section class="animate-in d2" style="margin-top:24px">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="settings_privacy">Privacy</div>
+        <div class="sec-title" data-i18n="settings_pin_lock">PIN Lock</div>
+      </div>
+      <span class="status unpaid" id="pinStatusPip" style="font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase"><span class="pip"></span><span id="pinStatusText" data-i18n="settings_pin_status_off">Off</span></span>
+    </div>
+    <label class="toggle-row">
+      <input type="checkbox" id="settingPinEnabled">
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      <span class="toggle-label"><span data-i18n="settings_pin_toggle">Require a PIN to open GuardPay</span><small data-i18n="settings_pin_toggle_desc">Protects viewing and changes on your Wi-Fi. Off by default.</small></span>
+    </label>
+    <div id="pinFields" class="pin-card" style="display:none">
+      <div class="settings-grid">
+        <div class="field-group" id="pinCurrentWrap" style="display:none">
+          <span class="gl" data-i18n="settings_current_pin">Current PIN</span>
+          <input class="add-input" id="pinCurrent" type="password" autocomplete="off" inputmode="numeric" data-i18n-placeholder="settings_current_pin_ph" placeholder="required to change">
+        </div>
+        <div class="field-group">
+          <span class="gl" data-i18n="settings_new_pin">New PIN (4–32 chars)</span>
+          <input class="add-input" id="pinNew" type="password" autocomplete="new-password" inputmode="numeric" data-i18n-placeholder="settings_new_pin_ph" placeholder="choose a PIN">
+        </div>
+      </div>
+      <div class="pin-strength" id="pinStrength" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div style="margin-top:14px"><button class="btn-primary" id="savePin" data-i18n="settings_save_pin">Save PIN settings</button></div>
+  </section>
+
+  <section class="animate-in d3" style="margin-top:24px">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="settings_data_mgmt">Data management</div>
+        <div class="sec-title" data-i18n="settings_backup_restore">Backup &amp; Restore</div>
+      </div>
+    </div>
+    <label class="toggle-row">
+      <input type="checkbox" id="settingBackupBefore">
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      <span class="toggle-label"><span data-i18n="settings_auto_backup">Auto-backup before destructive changes</span><small data-i18n="settings_auto_backup_desc">Saves a safety snapshot before deletes and restores.</small></span>
+    </label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+      <button class="export-btn" id="downloadBackup" style="width:auto" data-i18n="settings_download_backup">Download full backup</button>
+      <label class="export-btn" style="width:auto;cursor:pointer">
+        <span data-i18n="settings_restore_backup">Restore from backup</span>
+        <input type="file" id="restoreBackup" accept=".json" style="display:none">
+      </label>
+      <button class="export-btn" id="createSnapshot" style="width:auto" data-i18n="settings_snapshot">Snapshot now</button>
+      <button class="export-btn" id="downloadCsv" style="width:auto;background:var(--green);border-color:var(--green)" data-i18n="settings_download_csv">Download CSV</button>
+    </div>
+    <p class="settings-note" data-i18n="settings_snapshot_note">Snapshots are kept automatically (a daily one, plus one before every import). Restoring replaces all data and saves a safety snapshot first.</p>
+
+    <div class="backup-list-head">
+      <span class="gl" data-i18n="settings_recent_snapshots">Recent snapshots</span>
+      <button class="btn-ghost" id="refreshBackups" style="padding:6px 12px;font-size:12px" data-i18n="settings_refresh">Refresh</button>
+    </div>
+    <div id="backupList" class="backup-list">
+      <div class="backup-empty" data-i18n="settings_loading_snapshots">Loading…</div>
+    </div>
+  </section>
+
+  <section class="animate-in d3" style="margin-top:24px">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="settings_integrations">Integrations</div>
+        <div class="sec-title" data-i18n="settings_gdrive_title">Google Drive Backup</div>
+      </div>
+      <span class="status unpaid" id="gdriveStatusPip" style="font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase"><span class="pip"></span><span id="gdriveStatusText" data-i18n="settings_gdrive_not_connected">Not connected</span></span>
+    </div>
+    <p class="settings-note" style="margin-top:0" data-i18n="settings_gdrive_desc">Send a backup copy to your own Google Drive with one click, so it survives this laptop dying. Needs a free one-time Google setup — see below.</p>
+    <div id="gdriveConnected" style="display:none">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="export-btn" id="gdriveBackupNow" style="width:auto" data-i18n="settings_gdrive_backup_now">Backup now to Drive</button>
+        <button class="export-btn" id="gdriveDisconnect" style="width:auto;background:var(--danger);border-color:var(--danger)" data-i18n="settings_gdrive_disconnect">Disconnect</button>
+      </div>
+      <p class="settings-note" id="gdriveLastBackup"></p>
+    </div>
+    <details id="gdriveSetup">
+      <summary data-i18n="settings_gdrive_setup_summary">Set up Google Drive connection</summary>
+      <ol class="gdrive-steps">
+        <li data-i18n-html="settings_gdrive_step1">Go to <b>console.cloud.google.com</b> and create a project (no card needed).</li>
+        <li data-i18n-html="settings_gdrive_step2">Under <b>APIs &amp; Services → Library</b>, enable the <b>Google Drive API</b>.</li>
+        <li data-i18n-html="settings_gdrive_step3">Under <b>OAuth consent screen</b>, choose External and add yourself as a test user.</li>
+        <li data-i18n-html="settings_gdrive_step4">Under <b>Credentials → Create Credentials → OAuth client ID</b>, choose <b>Desktop app</b>.</li>
+        <li data-i18n-html="settings_gdrive_step5">Paste the Client ID and Client Secret it gives you below.</li>
+      </ol>
+      <div class="settings-grid" style="margin-top:12px">
+        <div class="field-group">
+          <span class="gl" data-i18n="settings_gdrive_client_id">Client ID</span>
+          <input class="add-input" id="gdriveClientId" type="text" autocomplete="off" placeholder="xxxx.apps.googleusercontent.com">
+        </div>
+        <div class="field-group">
+          <span class="gl" data-i18n="settings_gdrive_client_secret">Client Secret</span>
+          <input class="add-input" id="gdriveClientSecret" type="password" autocomplete="off" placeholder="GOCSPX-…">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn-primary" id="gdriveSaveConnect" data-i18n="settings_gdrive_save_connect">Save &amp; connect</button>
+      </div>
+    </details>
+  </section>
+
+  <section class="animate-in d4" style="margin-top:24px">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="settings_health">Health</div>
+        <div class="sec-title" data-i18n="settings_diagnostics">Diagnostics</div>
+      </div>
+      <button class="btn-primary" id="runDiagnostics" style="padding:9px 16px" data-i18n="settings_run_diagnostics">Run Diagnostics</button>
+    </div>
+    <div id="diagResults" class="diag-list"></div>
+    <details id="diagLogWrap" style="display:none">
+      <summary data-i18n="settings_view_logs">Server log (most recent)</summary>
+      <pre id="diagLog" class="diag-log"></pre>
+    </details>
+  </section>
+
+  <section class="animate-in d5" style="margin-top:24px">
+    <div class="sec-head">
+      <div>
+        <div class="sec-sub" data-i18n="settings_development">Development</div>
+        <div class="sec-title" data-i18n="settings_test_data">Test Data</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px" data-i18n="settings_test_data_desc">Load sample households and payment history to test charts and graphs. Delete when done.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="export-btn" id="loadTestData" style="width:auto;background:var(--accent);border-color:var(--accent)" data-i18n="settings_load_test">Load test data</button>
+      <button class="export-btn" id="clearTestData" style="width:auto;background:var(--danger);border-color:var(--danger)" data-i18n="settings_clear_all">Clear all data</button>
+    </div>
+  </section>
+</div>
+
+<div class="kb-hint" id="kbHint" role="status" aria-live="polite">
+  <span class="kb-key">⌨</span>
+  <span><span data-i18n="kb_hint_prefix">Type house # +</span> <b>Enter</b> <span data-i18n="kb_hint_suffix">to toggle ·</span> <span class="kb-num">—</span></span>
+  <button id="kbHintClose" aria-label="Dismiss keyboard hint" data-i18n-aria="kb_hint_close" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;line-height:1;padding:0 0 0 6px">×</button>
+</div>
+
+<!-- LOCK SCREEN -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-card">
+    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    <h2 data-i18n="lock_title">GuardPay is locked</h2>
+    <p data-i18n="lock_subtitle">Enter your PIN to continue.</p>
+    <input type="password" id="lockPin" class="add-input" data-i18n-placeholder="lock_ph" placeholder="PIN" autocomplete="current-password" inputmode="numeric">
+    <div class="lock-error" id="lockError"></div>
+    <button class="btn-primary" id="lockSubmit" style="width:100%" data-i18n="lock_submit">Unlock</button>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- IMPORT REVIEW SHEET -->
+<div class="import-overlay" id="importOverlay" aria-hidden="true">
+  <div class="import-sheet" role="dialog" aria-modal="true">
+    <div class="import-head">
+      <div>
+        <div class="sec-sub" data-i18n="import_sub">Bank SMS import</div>
+        <div class="sec-title" data-i18n="import_title">Import &amp; review CBE credits</div>
+      </div>
+      <div class="import-head-actions">
+        <button class="filter-btn" id="importRefreshBtn" data-i18n="data_refresh" title="Refresh">↻</button>
+        <button class="filter-btn" id="importCloseBtn" data-i18n="import_close">✕ Close</button>
+      </div>
+    </div>
+
+    <div class="import-toolbar">
+      <input type="file" id="importFile" accept=".xml,text/xml" style="display:none">
+      <button class="btn-primary" id="importPickBtn" data-i18n="sms_pick">⬆ Choose SMS backup</button>
+      <button class="btn-ghost" id="importAnalyzeBtn" disabled data-i18n="sms_analyze">Analyze</button>
+      <span id="importStatus" class="settings-note" style="margin:0"></span>
+    </div>
+
+    <div class="import-summary" id="importSummary">
+      <div class="import-sum-card"><span class="import-sum-num" id="impTotal">0</span><span class="import-sum-label" data-i18n="imp_sum_total">credits</span></div>
+      <div class="import-sum-card"><span class="import-sum-num" id="impAmount">0</span><span class="import-sum-label" data-i18n="imp_sum_amount">ETB</span></div>
+      <div class="import-sum-card imp-ok"><span class="import-sum-num" id="impMatched">0</span><span class="import-sum-label" data-i18n="imp_sum_matched">matched</span></div>
+      <div class="import-sum-card imp-warn"><span class="import-sum-num" id="impUnmatched">0</span><span class="import-sum-label" data-i18n="imp_sum_unmatched">unmatched</span></div>
+      <div class="import-sum-card imp-hi"><span class="import-sum-num" id="impHigh">0</span><span class="import-sum-label" data-i18n="imp_sum_high">high</span></div>
+      <div class="import-sum-card imp-med"><span class="import-sum-num" id="impMed">0</span><span class="import-sum-label" data-i18n="imp_sum_med">med</span></div>
+      <div class="import-sum-card imp-lo"><span class="import-sum-num" id="impLow">0</span><span class="import-sum-label" data-i18n="imp_sum_low">low</span></div>
+      <div class="import-progress-wrap">
+        <div class="import-progress" id="importProgress"><span></span></div>
+        <div class="import-progress-label" id="importProgressLabel">0%</div>
+      </div>
+    </div>
+
+    <div class="import-filterbar">
+      <div class="import-status-filters" id="importStatusFilters">
+        <button class="status-filter-btn active" data-if="pending" data-i18n="sms_f_pending">Pending</button>
+        <button class="status-filter-btn" data-if="approved" data-i18n="sms_f_approved">Approved</button>
+        <button class="status-filter-btn" data-if="rejected" data-i18n="sms_f_rejected">Rejected</button>
+        <button class="status-filter-btn" data-if="applied" data-i18n="sms_f_applied">Applied</button>
+        <button class="status-filter-btn" data-if="all" data-i18n="sms_f_all">All</button>
+      </div>
+      <div class="import-conf-filters" id="importConfFilters">
+        <button class="status-filter-btn active" data-ic="all" data-i18n="sms_c_all">All conf.</button>
+        <button class="status-filter-btn" data-ic="HIGH" data-i18n="sms_c_high">High</button>
+        <button class="status-filter-btn" data-ic="MEDIUM" data-i18n="sms_c_med">Medium</button>
+        <button class="status-filter-btn" data-ic="LOW" data-i18n="sms_c_low">Low</button>
+      </div>
+      <label class="import-check"><input type="checkbox" id="importUnmatched"><span data-i18n="imp_unmatched_only">Unmatched only</span></label>
+      <label class="import-check"><input type="checkbox" id="importDupOnly"><span data-i18n="imp_dup_only">Duplicates</span></label>
+      <input class="add-input" id="importSearch" type="text" data-i18n-placeholder="sms_search_ph" placeholder="Search name/amount...">
+      <select class="add-input" id="importMonth" style="width:auto"><option value="">Month (all)</option></select>
+      <input class="add-input" id="importMinAmt" type="number" min="0" placeholder="Min ETB" style="width:96px">
+      <input class="add-input" id="importMaxAmt" type="number" min="0" placeholder="Max ETB" style="width:96px">
+      <select class="add-input" id="importSort" style="width:auto">
+        <option value="date" data-i18n="imp_sort_date">Date ↑</option>
+        <option value="dateDesc" data-i18n="imp_sort_date_desc">Date ↓</option>
+        <option value="amount" data-i18n="imp_sort_amount">Amount ↑</option>
+        <option value="amountDesc" data-i18n="imp_sort_amount_desc">Amount ↓</option>
+        <option value="name" data-i18n="imp_sort_name">Name A–Z</option>
+        <option value="confidence" data-i18n="imp_sort_conf">Confidence</option>
+        <option value="status" data-i18n="imp_sort_status">Status</option>
+      </select>
+    </div>
+
+    <div class="import-body">
+      <div class="import-bulk">
+        <label class="import-check"><input type="checkbox" id="importSelAll"><span data-i18n="sms_sel_all">Select all filtered</span></label>
+        <button class="btn-primary" id="importApproveSel" data-i18n="sms_approve_sel">✓ Approve selected</button>
+        <button class="btn-ghost" id="importRejectSel" data-i18n="sms_reject_sel">✕ Reject selected</button>
+        <button class="btn-ghost" id="importDupSel" data-i18n="imp_mark_dup">⛔ Mark selected duplicate</button>
+        <button class="btn-accent" id="importApproveHigh" data-i18n="imp_approve_high">✓ Approve all HIGH</button>
+        <span style="flex:1"></span>
+        <button class="btn-ghost" id="importCsvBtn" data-i18n="imp_csv">⬇ CSV</button>
+        <button class="btn-ghost" id="importPreviewBtn" data-i18n="imp_preview">Preview apply</button>
+        <button class="btn-primary" id="importApplyBtn" data-i18n="sms_apply">Apply approved → ledger</button>
+        <button class="btn-ghost" id="importRevertBtn" data-i18n="imp_revert">↩ Revert applied</button>
+      </div>
+
+      <div class="import-main">
+        <div class="import-table-wrap">
+          <table class="data-table import-table" id="importTable">
+            <thead>
+              <tr>
+                <th style="width:32px"></th>
+                <th data-i18n="sms_col_date">Date</th>
+                <th data-i18n="sms_col_amt">Amount</th>
+                <th data-i18n="sms_col_payer">Payer / name</th>
+                <th data-i18n="sms_col_house">House</th>
+                <th data-i18n="sms_col_months">Months</th>
+                <th data-i18n="sms_col_from">From</th>
+                <th data-i18n="sms_col_note">Note</th>
+                <th data-i18n="sms_col_conf">Conf.</th>
+                <th data-i18n="sms_col_status">Status</th>
+                <th data-i18n="sms_col_actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="importBody"></tbody>
+          </table>
+        </div>
+        <div class="import-namepool">
+          <div class="import-namepool-title" data-i18n="imp_namepool">Payer names</div>
+          <div class="import-namepool-body" id="importNamePool"></div>
+        </div>
+      </div>
+      <div class="data-empty" id="importEmpty" style="display:none" data-i18n="sms_empty">Upload an SMS backup and press Analyze.</div>
+    </div>
+
+    <div class="import-preview" id="importPreview" style="display:none"></div>
+  </div>
+</div>
+
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<script src="vendor/html2canvas-pro.min.js" defer></script>
+<script src="i18n.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
