@@ -1191,7 +1191,7 @@ function BoardColumn({
   return (
     <div className="flex w-[262px] shrink-0 flex-col rounded-lg bg-[color-mix(in_srgb,var(--fg)_4%,transparent)]">
       <div className="flex items-center justify-between px-3 pb-2 pt-3">
-        <TagPill status={bucket as MonthStatus} />
+        <TagPill status={bucket} />
         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--border)] px-1.5 font-mono text-[11px] text-[var(--muted)]">
           {count}
         </span>
