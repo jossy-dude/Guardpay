@@ -220,6 +220,78 @@ function buildHeatCells(
   return { cells, total, months }
 }
 
+function HeatScrollbar({
+  containerRef,
+  pitch,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>
+  pitch: number
+}) {
+  const [progress, setProgress] = useState(0) // 0..1
+  const trackRef = useRef<HTMLDivElement>(null)
+  const dragging = useRef(false)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => {
+      const max = el.scrollWidth - el.clientWidth
+      setProgress(max > 0 ? el.scrollLeft / max : 0)
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    return () => el.removeEventListener('scroll', update)
+  }, [containerRef])
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const track = trackRef.current
+    const el = containerRef.current
+    if (!track || !el) return
+    dragging.current = true
+    const seek = (clientX: number) => {
+      const rect = track.getBoundingClientRect()
+      const t = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+      el.scrollLeft = t * (el.scrollWidth - el.clientWidth)
+    }
+    seek(e.clientX)
+    const onMove = (ev: PointerEvent) => seek(ev.clientX)
+    const onUp = () => {
+      dragging.current = false
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  const trackW = Math.min(7 * pitch, 120) // centered, ~6-7 tile-widths long
+  const thumbW = Math.max(10, trackW * 0.25)
+
+  return (
+    <div className="mt-2 flex justify-center">
+      <div
+        ref={trackRef}
+        role="slider"
+        aria-label="Calendar scroll"
+        aria-valuenow={Math.round(progress * 100)}
+        className="relative h-2 cursor-pointer touch-none items-center rounded-full bg-[var(--border)]/60"
+        style={{ width: trackW }}
+        onPointerDown={onPointerDown}
+      >
+        <div
+          className="absolute h-2 rounded-full bg-[var(--border-strong)]/90"
+          style={{
+            left: 0,
+            width: thumbW,
+            transform: `translateX(${progress * (trackW - thumbW)}px)`,
+            transition: dragging.current ? 'none' : 'transform 80ms linear',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
   const themeId = useThemeStore((s) => s.themeId)
   const fontOverride = useThemeStore((s) => s.fontOverride)
@@ -297,7 +369,7 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
           )
         }
       />
-      <div ref={scrollRef} style={{ overflowX: 'auto' }}>
+      <div ref={scrollRef} className="heatmap-scroll" style={{ overflowX: 'auto' }}>
       <div className="flex">
         <div
           className="mr-2 grid text-right font-mono"
@@ -381,6 +453,7 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
         </div>
       </div>
       </div>
+      <HeatScrollbar containerRef={scrollRef} pitch={pitch} />
       <div className="mt-3 flex flex-wrap items-center justify-between text-[11px]">
         <span className="font-mono text-[var(--muted)]">{heat.total.toLocaleString()} payments logged</span>
         <span className="flex items-center gap-1.5 font-mono text-[var(--muted)]">
