@@ -88,21 +88,19 @@ const COLUMNS: Column[] = [
 const ACTION_W = '3.5rem'
 
 const MONTHS_BACK = 12
-const STATUS_RANK: Record<MonthStatus | 'late', number> = { ontime: 0, late: 1, partial: 2, unpaid: 3, upcoming: 4 }
+const STATUS_RANK: Record<MonthStatus, number> = { ontime: 0, partial: 1, unpaid: 2, upcoming: 3 }
 
 /* ---------------- AnyType tag palette (10-color system) ---------------- */
 /** Payment status → AnyType tag colors (text on very-light bg). */
-const TAG_PALETTE: Record<MonthStatus | 'late', { text: string; bg: string }> = {
+const TAG_PALETTE: Record<MonthStatus, { text: string; bg: string }> = {
   ontime: { text: '#0caaa3', bg: '#d9f6f4' }, // teal
-  late: { text: '#d3720d', bg: '#fff2d7' }, // orange
   partial: { text: '#9e30c4', bg: '#f3e8ff' }, // purple
   unpaid: { text: '#e2400c', bg: '#ffede9' }, // red
   upcoming: { text: '#4f6af0', bg: '#e4e8fc' }, // blue
 }
 
-const TAG_LABEL: Record<MonthStatus | 'late', string> = {
+const TAG_LABEL: Record<MonthStatus, string> = {
   ontime: 'Paid',
-  late: 'Late',
   partial: 'Partial',
   unpaid: 'Unpaid',
   upcoming: 'Due',
@@ -287,14 +285,14 @@ export function RecordsPage() {
 
   const paid = (house: Household) => {
     const s = statusForMonth(stats.get(house.id), month)
-    return s === 'ontime' || s === ('late' as string)
+    return s === 'ontime'
   }
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
     for (const h of rows) {
-      const s = statusForMonth(stats.get(h.id), month) ?? 'upcoming'
-      c[s] = (c[s] ?? 0) + 1
+      const b = bucketFor(stats, h, month)
+      c[b] = (c[b] ?? 0) + 1
     }
     return c
   }, [rows, stats, month])
@@ -472,7 +470,7 @@ function FilterMenuBody({
   onChange: (v: MonthStatus | null) => void
 }) {
   const { close } = usePopover()
-  const statuses: MonthStatus[] = ['ontime', 'late', 'partial', 'unpaid', 'upcoming'] as MonthStatus[]
+  const statuses: MonthStatus[] = ['ontime', 'partial', 'unpaid', 'upcoming']
   return (
     <>
       <div className="mb-1 px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Status</div>
@@ -1044,18 +1042,19 @@ function TableCell({
 
 /* ---------------- Board view (AnyType ViewBoard) ---------------- */
 
-type BucketKey = 'ontime' | 'late' | 'upcoming' | 'unpaid'
+type BucketKey = 'ontime' | 'upcoming' | 'unpaid'
 
 const BOARD_BUCKETS: { key: BucketKey }[] = [
   { key: 'ontime' },
-  { key: 'late' },
-  { key: 'upcoming' },
   { key: 'unpaid' },
+  { key: 'upcoming' },
 ]
 
 function bucketFor(stats: ReturnType<typeof computeAllHouseStats>, house: Household, month: string): BucketKey {
   const s = statusForMonth(stats.get(house.id), month)
-  return s && (s === 'ontime' || s === ('late' as string) || s === 'unpaid') ? (s === 'ontime' ? 'ontime' : (s as BucketKey)) : 'upcoming'
+  if (s === 'ontime' || s === 'partial') return 'ontime'
+  if (s === 'unpaid') return 'unpaid'
+  return 'upcoming'
 }
 
 function BoardView({ rows, stats, month, query, counts, isToggling, onToggle, onEdit, onDelete, onRemind, onAdd }: ViewProps & { counts: Record<string, number> }) {
@@ -1120,8 +1119,8 @@ function BoardView({ rows, stats, month, query, counts, isToggling, onToggle, on
     const to = findBucket(activeId)
     const from = dragFrom.current ?? to
     if (house && from && to && from !== to) {
-      const targetPaid = to === 'ontime' || to === 'late'
-      const currentlyPaid = statusForMonth(stats.get(house.id), month) === 'ontime' || statusForMonth(stats.get(house.id), month) === ('late' as string)
+      const targetPaid = to === 'ontime'
+      const currentlyPaid = statusForMonth(stats.get(house.id), month) === 'ontime' || statusForMonth(stats.get(house.id), month) === 'partial'
       if (targetPaid !== currentlyPaid) onToggle(house, currentlyPaid)
       setOrder((prev) => reconcileOrder(prev, rows, stats, month))
     }
@@ -1260,7 +1259,7 @@ function BoardCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: house.id })
   const s = stats.get(house.id)
   const status = statusForMonth(s, month)
-  const isPaid = status === 'ontime' || status === ('late' as string)
+  const isPaid = status === 'ontime' || status === 'partial'
   return (
     <div
       ref={setNodeRef}
@@ -1324,7 +1323,7 @@ function rowsById(rows: Household[]): Map<number, Household> {
 }
 
 function initialOrder(rows: Household[], stats: ReturnType<typeof computeAllHouseStats>, month: string): Record<BucketKey, number[]> {
-  const order: Record<BucketKey, number[]> = { ontime: [], late: [], upcoming: [], unpaid: [] }
+  const order: Record<BucketKey, number[]> = { ontime: [], upcoming: [], unpaid: [] }
   for (const h of rows) order[bucketFor(stats, h, month)].push(h.id)
   return order
 }
@@ -1336,7 +1335,7 @@ function reconcileOrder(
   month: string,
 ): Record<BucketKey, number[]> {
   const derived = initialOrder(rows, stats, month)
-  const next = { ontime: [], late: [], upcoming: [], unpaid: [] } as Record<BucketKey, number[]>
+  const next = { ontime: [], upcoming: [], unpaid: [] } as Record<BucketKey, number[]>
   for (const b of BOARD_BUCKETS) {
     const newIds = derived[b.key]
     const kept = (prev[b.key] ?? []).filter((id) => newIds.includes(id))
