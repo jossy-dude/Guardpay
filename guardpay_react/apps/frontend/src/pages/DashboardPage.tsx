@@ -481,7 +481,7 @@ function HouseholdLedger({
                           setEditHouse({ id: house.id, name: house.name })
                         }}
                       >
-                        <td className="py-2.5 pr-2">
+                        <td className="py-2.5 pl-2 pr-2">
                           <HouseCell
                             house={house}
                             currentPayment={currentPayment}
