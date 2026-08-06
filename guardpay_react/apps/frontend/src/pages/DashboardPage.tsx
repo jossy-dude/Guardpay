@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Pencil, BellRing, Check, UserRound } from 'lucide-react'
 import { useDataStore } from '@/features/payments/dataStore'
@@ -248,14 +248,56 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
   const gap = 4
   const pitch = cellSize + gap
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [hoverMonth, setHoverMonth] = useState<string | null>(null)
+  const [todayHidden, setTodayHidden] = useState(false)
+
+  const todayCol = useMemo(() => heat.cells.find((c) => c.today)?.col ?? 0, [heat.cells])
+
+  const scrollTodayIntoView = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const target = Math.max(0, Math.min(todayCol * pitch - 0.85 * el.clientWidth, el.scrollWidth - el.clientWidth))
+    el.scrollTo({ left: target, behavior: 'smooth' })
+  }, [todayCol, pitch])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollLeft = Math.max(0, Math.min(todayCol * pitch - 0.85 * el.clientWidth, el.scrollWidth - el.clientWidth))
+  }, [todayCol, pitch])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      const target = Math.max(0, Math.min(todayCol * pitch - 0.85 * el.clientWidth, el.scrollWidth - el.clientWidth))
+      setTodayHidden(Math.abs(el.scrollLeft - target) > pitch * 1.5)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [todayCol, pitch])
+
   return (
     <Section className="mb-4">
       <SectionHead
         title="Payment Calendar"
         kicker="Collection rhythm"
-        right={<span className="text-sm text-[var(--muted)]">last 12 months</span>}
+        right={
+          todayHidden ? (
+            <button
+              type="button"
+              onClick={scrollTodayIntoView}
+              className="rounded-full border border-[var(--border-strong)] bg-[var(--card)] px-2.5 py-1 text-xs font-medium transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            >
+              Jump to today
+            </button>
+          ) : (
+            <span className="text-sm text-[var(--muted)]">last 12 months</span>
+          )
+        }
       />
-      <div style={{ overflowX: 'auto' }}>
+      <div ref={scrollRef} style={{ overflowX: 'auto' }}>
       <div className="flex">
         <div
           className="mr-2 grid text-right font-mono"
@@ -280,6 +322,11 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
             {heat.months.map((m) => (
               <span
                 key={m.monthKey}
+                tabIndex={0}
+                onMouseEnter={() => setHoverMonth(m.monthKey)}
+                onMouseLeave={() => setHoverMonth(null)}
+                onFocus={() => setHoverMonth(m.monthKey)}
+                onBlur={() => setHoverMonth(null)}
                 className="absolute"
                 style={{ left: m.col * pitch + pitch / 2, transform: 'translateX(-50%)', fontSize: 11, color: muted }}
               >
@@ -325,7 +372,7 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
                     key={c.iso}
                     title={`${c.date.toDateString()} — ${c.count} ${c.count === 1 ? 'payment' : 'payments'}`}
                     className="relative transition-transform duration-100 hover:z-10 hover:scale-110"
-                    style={{ width: cellSize, height: cellSize, background: c.count === 0 ? lv0 : heatRamp[c.level - 1], borderRadius: radius, boxShadow: shadow }}
+                    style={{ width: cellSize, height: cellSize, background: c.count === 0 ? lv0 : heatRamp[c.level - 1], borderRadius: radius, boxShadow: shadow, opacity: hoverMonth && c.monthKey !== hoverMonth ? 0.22 : 1, transition: 'opacity 180ms ease' }}
                   />
                 )
               })}
