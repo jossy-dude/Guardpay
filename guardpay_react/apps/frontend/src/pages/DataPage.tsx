@@ -117,7 +117,7 @@ export function DataPage() {
 
       <SmartImportForm defaultFee={settings.defaultFee} calendarMode={settings.calendarMode} />
 
-      <Section>
+      <Section data-surface="keep-rect">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Input
             value={query}
@@ -294,7 +294,7 @@ function AddHouseForm({ defaultFee }: { defaultFee: number }) {
   }
 
   return (
-    <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
+    <div data-surface="keep-rect" className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-sm font-semibold">Add household</div>
         <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
@@ -352,7 +352,7 @@ function BulkImportForm({ defaultFee }: { defaultFee: number }) {
   }
 
   return (
-    <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
+    <div data-surface="keep-rect" className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
       <div className="mb-2 flex items-center justify-between">
         <div className="text-sm font-semibold">Bulk import households</div>
         <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
@@ -494,7 +494,7 @@ function SmartImportForm({ defaultFee, calendarMode }: { defaultFee: number; cal
   }
 
   return (
-    <div className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
+    <div data-surface="keep-rect" className="mb-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
       <div className="mb-2 flex items-center justify-between">
         <div className="text-sm font-semibold">Import from Excel</div>
         <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
@@ -549,7 +549,7 @@ function BackupsSection() {
   const fmtDate = (iso: string) => new Date(iso).toLocaleString()
 
   return (
-    <Section className="mt-4">
+    <Section data-surface="keep-rect" className="mt-4">
       <SectionHead
         title="Backups & Restore"
         kicker="Server snapshots"

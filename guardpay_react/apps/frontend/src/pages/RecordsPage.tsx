@@ -866,7 +866,7 @@ function PaymentNote({ payment, className }: { payment?: Payment; className?: st
 function GridView({ rows, stats, month, query, sort, asc, onSort, paymentFor, paid, isToggling, onToggle, onEdit, onDelete, onRemind, onAdd, visible }: ViewProps & { sort: SortKey; asc: boolean; onSort: (k: SortKey) => void; visible: Record<ColumnKey, boolean> }) {
   const visibleCols = COLUMNS.filter((c) => c.key === 'houseNumber' || visible[c.key])
   return (
-    <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]">
+    <div data-surface="keep-rect" className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]">
       <div className="max-h-[70vh] overflow-auto">
         <table className="w-full border-collapse text-[14px] leading-[22px]">
           <thead>
@@ -1465,7 +1465,7 @@ function ListView({ rows, stats, month, query, sort, asc, onSort, paymentFor, pa
   const listCols = COLUMNS.filter((c) => c.key !== 'tier' && (c.key === 'houseNumber' || visible[c.key]))
   const listTemplate = listCols.map((c) => COLUMN_FRACTIONS[c.key]).join(' ')
   return (
-    <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]">
+    <div data-surface="keep-rect" className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]">
       <div className="max-h-[70vh] overflow-auto px-3 py-2">
         <div
           className="grid items-center gap-3 py-1.5 text-[12px] leading-[20px] text-[var(--muted)]"

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { MascotSpriteKey, MascotTheme, SoundTheme, ThemeFamily, ThemeId } from '@/lib/types'
+import type { MascotSpriteKey, MascotTheme, ShapeId, SoundTheme, ThemeFamily, ThemeId } from '@/lib/types'
 
 // ---- Font pool ----
 export interface FontPair {
@@ -96,6 +96,7 @@ export interface ThemeDefinition {
   font: FontPair
   density: 'compact' | 'comfortable' | 'spacious'
   radius: number // px
+  shape?: ShapeId // card surface shape; omitted themes resolve to 'square'
   texture?: 'paper' | 'grid' | 'carbon' | 'arcade' | 'dotted' | 'scan'
   meta: {
     author: string
@@ -133,6 +134,7 @@ sepia: {
     font: FONTS.editorial,
     density: 'comfortable',
     radius: 8,
+    shape: 'square',
     texture: 'paper',
     meta: { author: 'GuardPay', since: '2024', tagline: 'The ledger, as it always was.' },
     sound: { toggle: 'type', paid: 'ding', error: 'error', hover: 'tick', unpay: 'unpay' },
@@ -163,6 +165,7 @@ sepia: {
     font: FONTS.arcade,
     density: 'compact',
     radius: 6,
+    shape: 'irregular',
     texture: 'arcade',
     meta: { author: 'Arcade', since: '2026', tagline: 'Coin inserted. Debt cleared.' },
     sound: { toggle: 'coin', paid: 'chime', error: 'error', hover: 'tick', unpay: 'coin' },
@@ -223,6 +226,7 @@ sepia: {
     font: FONTS.organic,
     density: 'comfortable',
     radius: 16,
+    shape: 'square',
     texture: 'dotted',
     meta: { author: 'Grove', since: '2026', tagline: 'Roots run deep, so does the ledger.' },
     sound: { toggle: 'tick', paid: 'ding', error: 'error', hover: 'whoosh', unpay: 'unpay' },
@@ -283,6 +287,7 @@ sepia: {
     font: FONTS.terminal,
     density: 'compact',
     radius: 2,
+    shape: 'parallelogram',
     texture: 'scan',
     meta: { author: '$root', since: '2026', tagline: 'log: all dues settled.' },
     sound: { toggle: 'beep', paid: 'coin', error: 'error', hover: 'tick', unpay: 'unpay' },
@@ -313,6 +318,7 @@ sepia: {
     font: FONTS.organic,
     density: 'comfortable',
     radius: 12,
+    shape: 'trapezoid',
     texture: 'dotted',
     meta: { author: 'Scribe', since: '2026', tagline: 'By decree: accounts balanced by nightfall.' },
     sound: { toggle: 'click', paid: 'ding', error: 'error', hover: 'whoosh', unpay: 'unpay' },
@@ -512,12 +518,14 @@ interface ThemeState {
   radiusOverride: number | null
   accentOverride: string | null
   textureOverride: string | null
+  shapeOverride: ShapeId | null
   setTheme: (id: ThemeId) => void
   setFontOverride: (key: string | null) => void
   setDensityOverride: (d: ThemeState['densityOverride']) => void
   setRadiusOverride: (r: number | null) => void
   setAccentOverride: (c: string | null) => void
   setTextureOverride: (t: string | null) => void
+  setShapeOverride: (s: ShapeId | null) => void
   resetOverrides: () => void
 }
 
@@ -530,14 +538,16 @@ export const useThemeStore = create<ThemeState>()(
       radiusOverride: null,
       accentOverride: null,
       textureOverride: null,
+      shapeOverride: null,
       setTheme: (id) => set({ themeId: id }),
       setFontOverride: (key) => set({ fontOverride: key }),
       setDensityOverride: (d) => set({ densityOverride: d }),
       setRadiusOverride: (r) => set({ radiusOverride: r }),
       setAccentOverride: (c) => set({ accentOverride: c }),
       setTextureOverride: (t) => set({ textureOverride: t }),
+      setShapeOverride: (s) => set({ shapeOverride: s }),
       resetOverrides: () =>
-        set({ fontOverride: null, densityOverride: null, radiusOverride: null, accentOverride: null, textureOverride: null }),
+        set({ fontOverride: null, densityOverride: null, radiusOverride: null, accentOverride: null, textureOverride: null, shapeOverride: null }),
     }),
     {
       name: 'guardpay-theme',
@@ -555,10 +565,14 @@ export interface ResolveParams {
   radiusOverride: number | null
   accentOverride: string | null
   textureOverride: string | null
+  shapeOverride: ShapeId | null
 }
 
+/** A fully-resolved theme: shape is always present after resolve. */
+export type ResolvedTheme = ThemeDefinition & { shape: ShapeId }
+
 /** Resolve the effective theme definition, merging localized overrides. */
-export function resolveTheme(params?: ResolveParams): ThemeDefinition {
+export function resolveTheme(params?: ResolveParams): ResolvedTheme {
   const s = params ?? useThemeStore.getState()
   const base = THEMES[s.themeId]
   if (
@@ -566,16 +580,18 @@ export function resolveTheme(params?: ResolveParams): ThemeDefinition {
     !s.densityOverride &&
     s.radiusOverride === null &&
     !s.accentOverride &&
-    !s.textureOverride
+    !s.textureOverride &&
+    s.shapeOverride === null
   ) {
-    return base
+    return { ...base, shape: base.shape ?? 'square' }
   }
-  const merged: ThemeDefinition = {
+  const merged: ThemeDefinition & { shape: ShapeId } = {
     ...base,
     colors: { ...base.colors },
     font: s.fontOverride ? (FONTS[s.fontOverride as keyof typeof FONTS] ?? base.font) : base.font,
     density: s.densityOverride ?? base.density,
     radius: s.radiusOverride ?? base.radius,
+    shape: s.shapeOverride ?? base.shape ?? 'square',
     texture: (s.textureOverride as ThemeDefinition['texture']) ?? base.texture,
   }
   if (s.accentOverride) merged.colors.accent = s.accentOverride

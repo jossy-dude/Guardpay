@@ -299,6 +299,7 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
   const radiusOverride = useThemeStore((s) => s.radiusOverride)
   const accentOverride = useThemeStore((s) => s.accentOverride)
   const textureOverride = useThemeStore((s) => s.textureOverride)
+  const shapeOverride = useThemeStore((s) => s.shapeOverride)
   const theme = useMemo(
     () =>
       resolveTheme({
@@ -308,8 +309,9 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
         radiusOverride,
         accentOverride,
         textureOverride,
+        shapeOverride,
       }),
-    [themeId, fontOverride, densityOverride, radiusOverride, accentOverride, textureOverride],
+    [themeId, fontOverride, densityOverride, radiusOverride, accentOverride, textureOverride, shapeOverride],
   )
   const { accent, border, muted } = theme.colors
   const heatRamp = theme.colors.heat
@@ -552,7 +554,7 @@ function HouseholdLedger({
   }
 
   return (
-    <Section className="lg:col-span-2">
+    <Section data-surface="keep-rect" className="lg:col-span-2">
       <div className="relative">
         {celebrate && (
           <span className="pointer-events-none absolute -top-2 right-24 z-10">

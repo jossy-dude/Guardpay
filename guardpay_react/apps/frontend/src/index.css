@@ -153,6 +153,21 @@ code, pre, .font-mono {
 }
 .pixel { image-rendering: pixelated; }
 
+/* ---------- Card shapes (global, replaces radius on card surfaces) ---------- */
+[data-shape="rectangle"] [data-surface] { border-radius: 0; }
+[data-shape="square"] [data-surface] { border-radius: 8px; }
+[data-shape="circle"] [data-surface] { border-radius: 9999px; }
+[data-shape="circle"] [data-surface="keep-rect"] { border-radius: 8px; }
+[data-shape="trapezoid"] [data-surface] { border-radius: 0; clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%); }
+[data-shape="parallelogram"] [data-surface] { border-radius: 0; clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%); }
+[data-shape="irregular"] [data-surface] { border-radius: 0; clip-path: polygon(10% 0, 78% 4%, 100% 28%, 96% 82%, 60% 100%, 8% 92%, 0 55%); }
+/* Long-form surfaces (tables / forms / charts) never get clipped or hard-shaped */
+[data-shape="rectangle"] [data-surface="keep-rect"] { border-radius: 8px; }
+[data-shape="square"] [data-surface="keep-rect"] { border-radius: 8px; }
+[data-shape="trapezoid"] [data-surface="keep-rect"] { border-radius: 8px; clip-path: none; }
+[data-shape="parallelogram"] [data-surface="keep-rect"] { border-radius: 8px; clip-path: none; }
+[data-shape="irregular"] [data-surface="keep-rect"] { border-radius: 8px; clip-path: none; }
+
 /* ---------- Watch family: brass patrol-seal rings & engraved type ---------- */
 [data-family="watch"] {
   --seal: color-mix(in srgb, var(--primary) 78%, var(--accent) 22%);

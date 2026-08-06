@@ -225,6 +225,9 @@ export type ThemeId =
  *  clean, rounded contemporary look. */
 export type ThemeFamily = 'watch' | 'modern'
 
+/** Card surface shapes applied globally via `data-shape` on <html> + `data-surface` on cards. */
+export type ShapeId = 'rectangle' | 'square' | 'circle' | 'trapezoid' | 'parallelogram' | 'irregular'
+
 /** Atomic sound presets that a theme can remap per action. */
 export type SoundPreset = 'tick' | 'click' | 'type' | 'chime' | 'ding' | 'coin' | 'beep' | 'thock' | 'whoosh' | 'paid' | 'unpay' | 'error' | 'close'
 

@@ -101,6 +101,7 @@ export function Dialog({
               panelClassName,
             )}
             style={{ boxShadow: '0 30px 60px -20px rgba(0,0,0,0.5)' }}
+            data-surface
           >
             <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
               <div>
