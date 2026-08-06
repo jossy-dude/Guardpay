@@ -88,8 +88,18 @@ Guiding constraints:
   and Reset-to-default (clears `avatar` back to `null`).
 - **Neutral placeholder** (for `null`): muted theme-colored circle with the
   household's initial letter.
+- **Click animation & feel** (user-requested):
+  - Avatar trigger presses down (spring scale ~0.94) the instant you click,
+    then the dialog springs open from center with the existing pop.
+  - Picker panels stagger-pop in (each preset card + customize control), so the
+    popup feels alive rather than static.
+  - Preset cards hover-lift (`translateY` + slight scale + shadow) and the
+    selected card "snaps" in with a spring and a themed ring.
+  - Save button gives a press pulse on submit.
+  - Everything gated by `prefers-reduced-motion` (falls back to instant
+    open, no transform motion).
 - **Accessibility/motion:** keyboard-focusable buttons with `:focus-visible`
-  rings; no new motion besides the existing dialog spring.
+  rings; all motion above degrades cleanly under `prefers-reduced-motion`.
 
 ## 4. Surface swap & cleanup (approved)
 
