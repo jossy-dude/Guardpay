@@ -268,7 +268,7 @@ export function RecordsPage() {
             return next
           })
         },
-        onSuccess: () => play(currentlyPaid ? 'toggle' : 'paid'),
+        onSuccess: () => play(currentlyPaid ? 'unpay' : 'paid'),
       },
     )
   }

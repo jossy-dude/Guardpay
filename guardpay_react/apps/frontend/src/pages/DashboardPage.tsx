@@ -521,7 +521,7 @@ function HouseholdLedger({
         date: todayIso(),
         amount: house.fee,
       },
-      { onSuccess: () => play(house.paid ? 'error' : 'paid') },
+      { onSuccess: () => play(house.paid ? 'unpay' : 'paid') },
     )
   }
 

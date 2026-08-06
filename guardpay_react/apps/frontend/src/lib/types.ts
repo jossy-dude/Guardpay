@@ -227,12 +227,13 @@ export type ThemeId =
 export type ThemeFamily = 'watch' | 'modern'
 
 /** Atomic sound presets that a theme can remap per action. */
-export type SoundPreset = 'tick' | 'click' | 'type' | 'chime' | 'ding' | 'coin' | 'beep' | 'thock' | 'whoosh' | 'paid' | 'error' | 'close'
+export type SoundPreset = 'tick' | 'click' | 'type' | 'chime' | 'ding' | 'coin' | 'beep' | 'thock' | 'whoosh' | 'paid' | 'unpay' | 'error' | 'close'
 
 /** Which preset to play for each semantic action within a theme. */
 export interface SoundTheme {
   toggle: SoundPreset
   paid: SoundPreset
+  unpay: SoundPreset
   error: SoundPreset
   hover: SoundPreset
 }
