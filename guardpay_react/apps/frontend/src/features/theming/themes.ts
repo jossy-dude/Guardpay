@@ -71,14 +71,6 @@ export const FONTS: {
 }
 
 // ---- Theme definitions ----
-/** A resident avatar configuration (seeded pixel art + optional ring). */
-export interface AvatarTheme {
-  seedBase: string
-  style: 'pixel-art' | 'pixel-art-nolook'
-  background: string[]
-  ring: 'brass' | 'accent' | 'primary' | 'success' | 'none'
-}
-
 export interface ThemeDefinition {
   id: ThemeId
   label: string
@@ -112,7 +104,6 @@ export interface ThemeDefinition {
   }
   sound: SoundTheme
   mascot: MascotTheme
-  avatar: AvatarTheme
   /** pixel-matrix art key rendered by the mascot host for this theme */
   sprite: MascotSpriteKey
 }
@@ -146,7 +137,6 @@ sepia: {
     meta: { author: 'GuardPay', since: '2024', tagline: 'The ledger, as it always was.' },
     sound: { toggle: 'type', paid: 'ding', error: 'error', hover: 'tick' },
     mascot: { key: 'guard', name: 'Teshale the Guard', role: 'Watchman · Gate 1', lines: ['ALL QUIET ON THE LEDGER', '6 DUES UNPAID', 'STREAK: 4 MONTHS'] },
-    avatar: { seedBase: 'h', style: 'pixel-art', background: ['fbf6e4', 'efe3c4', '8a5a2b'], ring: 'brass' },
     sprite: 'guard',
   },
   'midnight-arcade': {
@@ -177,7 +167,6 @@ sepia: {
     meta: { author: 'Arcade', since: '2026', tagline: 'Coin inserted. Debt cleared.' },
     sound: { toggle: 'coin', paid: 'chime', error: 'error', hover: 'tick' },
     mascot: { key: 'pixel', name: '8-BIT KEEPER', role: 'Player 1', lines: ['LEVEL 1: ALL PAID', 'HI-SCORE 98 PTS', 'INSERT COIN 2 SETTLE'] },
-    avatar: { seedBase: 'h8', style: 'pixel-art', background: ['161233', '43297c', 'ff4f9a'], ring: 'accent' },
     sprite: 'pixel',
   },
   blueprint: {
@@ -208,7 +197,6 @@ sepia: {
     meta: { author: 'Studio', since: '2026', tagline: 'Every weld and wire accounted for.' },
     sound: { toggle: 'click', paid: 'ding', error: 'error', hover: 'tick' },
     mascot: { key: 'builder', name: 'Dr. Draft', role: 'Surveyor 2D', lines: ['DWG-0042: FULLY PAID', 'ELEVATION ARR 98%', 'CHECK THE SIGHTLINES'] },
-    avatar: { seedBase: 'b', style: 'pixel-art', background: ['dde8f0', '1565a8', '0e7c6b'], ring: 'primary' },
     sprite: 'builder',
   },
   botanical: {
@@ -239,7 +227,6 @@ sepia: {
     meta: { author: 'Grove', since: '2026', tagline: 'Roots run deep, so does the ledger.' },
     sound: { toggle: 'tick', paid: 'ding', error: 'error', hover: 'whoosh' },
     mascot: { key: 'grove', name: 'Olive the Sprout', role: 'Canopy Warden', lines: ['LEAVES FALL, DUES DON\u2019T', 'GROWING 92% PAID', 'FRESH SOIL, CLEAR BOOKS'] },
-    avatar: { seedBase: 'g', style: 'pixel-art', background: ['dbe5c6', '527a35', '3e7d6c'], ring: 'success' },
     sprite: 'grove',
   },
   sunwashed: {
@@ -270,7 +257,6 @@ sepia: {
     meta: { author: 'Sol', since: '2026', tagline: 'Warm, airy, and nothing overdue.' },
     sound: { toggle: 'tick', paid: 'ding', error: 'error', hover: 'whoosh' },
     mascot: { key: 'guard', name: 'Captain Clear Skies', role: 'Beach Patrol', lines: ['ALL CLEAR AHOY', 'SUNNY SIDE = PAID SIDE', 'TIDES IN, DUES OUT'] },
-    avatar: { seedBase: 's', style: 'pixel-art', background: ['f0e6d2', 'c07a3e', 'b0567a'], ring: 'accent' },
     sprite: 'guard',
   },
   terminal: {
@@ -301,7 +287,6 @@ sepia: {
     meta: { author: '$root', since: '2026', tagline: 'log: all dues settled.' },
     sound: { toggle: 'beep', paid: 'coin', error: 'error', hover: 'tick' },
     mascot: { key: 'bot', name: 'CLI-9', role: 'root@ledger', lines: ['> tail dues.log ... 0', '> grep PAID --count 84%', '> exit(0)  ALL CLEAR'] },
-    avatar: { seedBase: 't', style: 'pixel-art', background: ['16220f', '3ddc68', '22c9e0'], ring: 'none' },
     sprite: 'bot',
   },
   'royal-ledger': {
@@ -332,7 +317,6 @@ sepia: {
     meta: { author: 'Scribe', since: '2026', tagline: 'By decree: accounts balanced by nightfall.' },
     sound: { toggle: 'click', paid: 'ding', error: 'error', hover: 'whoosh' },
     mascot: { key: 'scribe', name: 'Scribe Astor', role: 'Keeper of the Crown', lines: ['THE LEDGER IS LEGEND', 'COFFERS FULL THIS EVE', 'HONOR PAID IN FULL'] },
-    avatar: { seedBase: 'r', style: 'pixel-art', background: ['2a2342', 'b4903c', '7c5cbf'], ring: 'brass' },
     sprite: 'scribe',
   },
   newspaper: {
@@ -363,7 +347,6 @@ sepia: {
     meta: { author: 'The Press', since: '1887', tagline: 'Extra! Extra! All debts settled!' },
     sound: { toggle: 'type', paid: 'ding', error: 'error', hover: 'tick' },
     mascot: { key: 'detective', name: 'Det. Inkwell', role: 'Cold-Case Ledger', lines: ['THE PRINT NEVER LIES', 'FOLLOW THE PAPER TRAIL', 'CASE 0042: CLOSED'] },
-    avatar: { seedBase: 'd', style: 'pixel-art', background: ['e4d6b6', '7d1f1f', 'c8b98f'], ring: 'brass' },
     sprite: 'detective',
   },
   // ---- Newspaper edition themes (from "The Ledger" print edition) ----
@@ -395,7 +378,6 @@ sepia: {
     meta: { author: 'The Ledger', since: '2025', tagline: 'Neither a borrower nor a lender be.' },
     sound: { toggle: 'type', paid: 'ding', error: 'error', hover: 'tick' },
     mascot: { key: 'scribe', name: 'Editor Prime', role: 'Front Page', lines: ['EXTRA! EXTRA!', '84 SETTLED THIS MONTH', 'FOLLOW THE MONEY'] },
-    avatar: { seedBase: 'm', style: 'pixel-art', background: ['f5edd8', '1a0f0a', '8b4513'], ring: 'brass' },
     sprite: 'scribe',
   },
   'evening-gazette': {
@@ -426,7 +408,6 @@ sepia: {
     meta: { author: 'The Gazette', since: '2025', tagline: 'Set by sunset, read by candlelight.' },
     sound: { toggle: 'type', paid: 'chime', error: 'error', hover: 'whoosh' },
     mascot: { key: 'detective', name: 'Inkwell', role: 'Night Desk', lines: ['THE LAMP IS LIT', 'DEBTS SETTLED BY DUSK', 'FOLLOW THE COLUMNS'] },
-    avatar: { seedBase: 'e', style: 'pixel-art', background: ['221c14', 'd4c4a8', 'c4944a'], ring: 'brass' },
     sprite: 'detective',
   },
   'broadsheet-blue': {
@@ -457,7 +438,6 @@ sepia: {
     meta: { author: 'The BroadSheet', since: '2025', tagline: 'Drawn in cobalt, set in stone.' },
     sound: { toggle: 'click', paid: 'ding', error: 'error', hover: 'tick' },
     mascot: { key: 'builder', name: 'Pressman Blue', role: 'Compositor', lines: ['SET IN 9PT COBALT', 'PRINTING THE LEDGER', 'ALL COLUMNS JUSTIFIED'] },
-    avatar: { seedBase: 'bs', style: 'pixel-art', background: ['c8d4e4', '1a2030', '2a5080'], ring: 'primary' },
     sprite: 'builder',
   },
   'tabloid-gold': {
@@ -488,7 +468,6 @@ sepia: {
     meta: { author: 'The Tabloid', since: '2025', tagline: 'Sun-up, cash-up.' },
     sound: { toggle: 'tick', paid: 'coin', error: 'error', hover: 'whoosh' },
     mascot: { key: 'guard', name: 'Sunrise Tom', role: 'Circulation', lines: ['GOLD INK, CLEAR BOOKS', 'THE MORNING MONEY', 'ALL PAID BY FIRST LIGHT'] },
-    avatar: { seedBase: 'tg', style: 'pixel-art', background: ['f8eed4', '2a1a08', 'a06020'], ring: 'accent' },
     sprite: 'guard',
   },
   'gazette-noir': {
@@ -519,7 +498,6 @@ sepia: {
     meta: { author: 'Noir Press', since: '2025', tagline: 'The night desk keeps the ledger.' },
     sound: { toggle: 'thock', paid: 'beep', error: 'error', hover: 'tick' },
     mascot: { key: 'bot', name: 'Fedora-9', role: 'Night Compositor', lines: ['THE DARK ROOM DEVELOPS', 'DEBT, DEVELOPED IN BLACK', 'NOIR: ALL DUES FILED'] },
-    avatar: { seedBase: 'gn', style: 'pixel-art', background: ['141414', 'c8c0b0', 'c8a060'], ring: 'brass' },
     sprite: 'bot',
   },
 }
