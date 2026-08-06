@@ -1581,7 +1581,7 @@ function ListRowCells({
         }
         return (
           <span key={c.key} className="flex min-w-0 items-center gap-2.5">
-            <ResidentAvatar house={house} size={24} onClick={() => useAvatarPicker.getState().open(house)} />
+            <ResidentAvatar house={house} size={24} />
             <span className="min-w-0">
               <span className="block font-mono text-xs text-[var(--primary)]">{house.houseNumber}</span>
               <span className="block truncate text-sm font-medium" title={house.name}>
