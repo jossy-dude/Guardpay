@@ -42,6 +42,7 @@ const emptySettings: Settings = {
   guardAccountSuffix: '',
   calendarMode: 'gregorian',
   monthLanguage: 'english',
+  heatmapShape: 'square',
 }
 
 function mapSettings(a: ApiSettings): Settings {
@@ -56,6 +57,7 @@ function mapSettings(a: ApiSettings): Settings {
     guardAccountSuffix: a.guard_account_suffix,
     calendarMode: a.calendar_mode ?? 'gregorian',
     monthLanguage: a.month_language ?? 'english',
+    heatmapShape: a.heatmap_shape ?? 'square',
   }
 }
 

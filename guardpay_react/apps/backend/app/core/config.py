@@ -25,6 +25,7 @@ DEFAULT_SETTINGS = {
     "guard_account_suffix": "",
     "calendar_mode": "gregorian",
     "month_language": "english",
+    "heatmap_shape": "square",
 }
 
 KNOWN_SETTINGS = set(DEFAULT_SETTINGS.keys())

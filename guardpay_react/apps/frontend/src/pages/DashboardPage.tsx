@@ -242,6 +242,7 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
   const { accent, border, muted } = theme.colors
   const heatRamp = theme.colors.heat
   const lv0 = border
+  const heatmapShape = useDataStore((s) => s.settings.heatmapShape)
 
   const cellSize = 18
   const gap = 4
@@ -311,7 +312,7 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
               }}
             >
               {heat.cells.map((c) => {
-                const shape = 'square' // Task 3 replaces this with settings.heatmapShape
+                const shape = heatmapShape
                 const isSquare = shape === 'square'
                 const radius = isSquare ? cellSize * 0.35 : 4
                 const shadow = c.today

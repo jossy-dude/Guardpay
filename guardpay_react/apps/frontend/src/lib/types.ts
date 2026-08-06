@@ -77,6 +77,7 @@ export interface Settings {
   guardAccountSuffix: string
   calendarMode: 'gregorian' | 'ethiopian'
   monthLanguage: 'english' | 'amharic'
+  heatmapShape: 'square' | 'rounded'
 }
 
 // -------- Derived/calculated types (server or client computed) --------
@@ -192,6 +193,7 @@ export interface ApiSettings {
   guard_account_suffix: string
   calendar_mode: 'gregorian' | 'ethiopian'
   month_language: 'english' | 'amharic'
+  heatmap_shape: 'square' | 'rounded'
 }
 
 export interface ApiStateResponse {

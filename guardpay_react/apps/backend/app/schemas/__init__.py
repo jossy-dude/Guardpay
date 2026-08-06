@@ -160,6 +160,7 @@ class SettingsUpdate(BaseModel):
     guard_account_suffix: str | None = None
     calendar_mode: Literal["gregorian", "ethiopian"] | None = None
     month_language: Literal["english", "amharic"] | None = None
+    heatmap_shape: Literal["square", "rounded"] | None = None
 
 
 # ---- Bulk add ----

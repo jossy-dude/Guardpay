@@ -115,6 +115,7 @@ function GeneralTab() {
         guard_account_suffix: draft.guardAccountSuffix,
         calendar_mode: draft.calendarMode,
         month_language: draft.monthLanguage,
+        heatmap_shape: draft.heatmapShape,
       },
       { onSuccess: () => setSaved(true) },
     )
@@ -215,6 +216,12 @@ function GeneralTab() {
               onChange={(v) => update({ monthLanguage: v ? 'amharic' : 'english' })}
             />
           )}
+          <ToggleRow
+            label="Square calendar tiles"
+            desc="Layered raised tiles on the dashboard payment calendar instead of flat rounded dots."
+            checked={draft.heatmapShape === 'square'}
+            onChange={(v) => update({ heatmapShape: v ? 'square' : 'rounded' })}
+          />
         </Section>
       </div>
 

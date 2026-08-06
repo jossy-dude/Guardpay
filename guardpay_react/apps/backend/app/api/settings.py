@@ -40,6 +40,7 @@ async def get_settings(session: AsyncSession = Depends(get_db)):
         "guard_account_suffix": merged.get("guard_account_suffix", ""),
         "calendar_mode": merged.get("calendar_mode", "gregorian"),
         "month_language": merged.get("month_language", "english"),
+        "heatmap_shape": merged.get("heatmap_shape", "square"),
     }
 
 
