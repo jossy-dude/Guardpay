@@ -27,7 +27,7 @@ import { useTogglePayment, useGuardMutation, useHouseMutation, useReminderMutati
 import { useSound } from '@/hooks/useSound'
 import { Button } from '@/components/ui/button'
 import { toastSuccess, toastError } from '@/components/toast/store'
-import type { HouseStats, Household } from '@/lib/types'
+import type { HouseStats, Household, MonthStatus } from '@/lib/types'
 
 export function DashboardPage() {
   const houses = useDataStore((s) => s.houses)
@@ -597,7 +597,6 @@ function HouseholdLedger({
                 return (
 <motion.tr
                         key={house.id}
-                        layout
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -623,7 +622,9 @@ function HouseholdLedger({
                           )}
                         </td>
                         <td className="py-2.5">
-                          <StatusPill status={statusForMonth(stats, currentMonth)} />
+                          <div className="flex h-7 items-center">
+                            <MonthStatusCard status={statusForMonth(stats, currentMonth)} />
+                          </div>
                         </td>
                         <td className="py-2.5 text-right">
                           <ContextMenu
@@ -725,6 +726,25 @@ function NameEditor({
         </div>
       </form>
     </div>
+  )
+}
+
+function MonthStatusCard({ status }: { status: MonthStatus | null }) {
+  const tone =
+    status === 'ontime'
+      ? 'color-mix(in srgb, var(--success) 14%, transparent)'
+      : status === 'partial'
+        ? 'color-mix(in srgb, var(--accent) 14%, transparent)'
+        : status === 'upcoming'
+          ? 'color-mix(in srgb, var(--muted) 14%, transparent)'
+          : 'color-mix(in srgb, var(--danger) 14%, transparent)'
+  return (
+    <span
+      className="inline-flex items-center rounded-md border border-[var(--border)] px-1.5 py-0.5"
+      style={{ background: tone }}
+    >
+      <StatusPill status={status} />
+    </span>
   )
 }
 
