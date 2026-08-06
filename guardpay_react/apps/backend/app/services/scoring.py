@@ -35,7 +35,7 @@ def build_history(created_month: str, payments: list[dict], due_day: int, end_mo
             days_diff = (paid - due).days
             history.append({
                 "month_key": key,
-                "status": "ontime" if days_diff <= 0 else "late",
+                "status": "ontime",
                 "days_diff": days_diff,
                 "paid_date": pay["paid_date"],
                 "amount": pay["amount"],

@@ -88,11 +88,11 @@ const COLUMNS: Column[] = [
 const ACTION_W = '3.5rem'
 
 const MONTHS_BACK = 12
-const STATUS_RANK: Record<MonthStatus, number> = { ontime: 0, late: 1, partial: 2, unpaid: 3, upcoming: 4 }
+const STATUS_RANK: Record<MonthStatus | 'late', number> = { ontime: 0, late: 1, partial: 2, unpaid: 3, upcoming: 4 }
 
 /* ---------------- AnyType tag palette (10-color system) ---------------- */
 /** Payment status → AnyType tag colors (text on very-light bg). */
-const TAG_PALETTE: Record<MonthStatus, { text: string; bg: string }> = {
+const TAG_PALETTE: Record<MonthStatus | 'late', { text: string; bg: string }> = {
   ontime: { text: '#0caaa3', bg: '#d9f6f4' }, // teal
   late: { text: '#d3720d', bg: '#fff2d7' }, // orange
   partial: { text: '#9e30c4', bg: '#f3e8ff' }, // purple
@@ -100,7 +100,7 @@ const TAG_PALETTE: Record<MonthStatus, { text: string; bg: string }> = {
   upcoming: { text: '#4f6af0', bg: '#e4e8fc' }, // blue
 }
 
-const TAG_LABEL: Record<MonthStatus, string> = {
+const TAG_LABEL: Record<MonthStatus | 'late', string> = {
   ontime: 'Paid',
   late: 'Late',
   partial: 'Partial',
@@ -287,7 +287,7 @@ export function RecordsPage() {
 
   const paid = (house: Household) => {
     const s = statusForMonth(stats.get(house.id), month)
-    return s === 'ontime' || s === 'late'
+    return s === 'ontime' || s === ('late' as string)
   }
 
   const counts = useMemo(() => {
@@ -472,7 +472,7 @@ function FilterMenuBody({
   onChange: (v: MonthStatus | null) => void
 }) {
   const { close } = usePopover()
-  const statuses: MonthStatus[] = ['ontime', 'late', 'partial', 'unpaid', 'upcoming']
+  const statuses: MonthStatus[] = ['ontime', 'late', 'partial', 'unpaid', 'upcoming'] as MonthStatus[]
   return (
     <>
       <div className="mb-1 px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Status</div>
@@ -1055,7 +1055,7 @@ const BOARD_BUCKETS: { key: BucketKey }[] = [
 
 function bucketFor(stats: ReturnType<typeof computeAllHouseStats>, house: Household, month: string): BucketKey {
   const s = statusForMonth(stats.get(house.id), month)
-  return s && (s === 'ontime' || s === 'late' || s === 'unpaid') ? (s === 'ontime' ? 'ontime' : (s as BucketKey)) : 'upcoming'
+  return s && (s === 'ontime' || s === ('late' as string) || s === 'unpaid') ? (s === 'ontime' ? 'ontime' : (s as BucketKey)) : 'upcoming'
 }
 
 function BoardView({ rows, stats, month, query, counts, isToggling, onToggle, onEdit, onDelete, onRemind, onAdd }: ViewProps & { counts: Record<string, number> }) {
@@ -1121,7 +1121,7 @@ function BoardView({ rows, stats, month, query, counts, isToggling, onToggle, on
     const from = dragFrom.current ?? to
     if (house && from && to && from !== to) {
       const targetPaid = to === 'ontime' || to === 'late'
-      const currentlyPaid = statusForMonth(stats.get(house.id), month) === 'ontime' || statusForMonth(stats.get(house.id), month) === 'late'
+      const currentlyPaid = statusForMonth(stats.get(house.id), month) === 'ontime' || statusForMonth(stats.get(house.id), month) === ('late' as string)
       if (targetPaid !== currentlyPaid) onToggle(house, currentlyPaid)
       setOrder((prev) => reconcileOrder(prev, rows, stats, month))
     }
@@ -1192,7 +1192,7 @@ function BoardColumn({
   return (
     <div className="flex w-[262px] shrink-0 flex-col rounded-lg bg-[color-mix(in_srgb,var(--fg)_4%,transparent)]">
       <div className="flex items-center justify-between px-3 pb-2 pt-3">
-        <TagPill status={bucket} />
+        <TagPill status={bucket as MonthStatus} />
         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--border)] px-1.5 font-mono text-[11px] text-[var(--muted)]">
           {count}
         </span>
@@ -1260,7 +1260,7 @@ function BoardCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: house.id })
   const s = stats.get(house.id)
   const status = statusForMonth(s, month)
-  const isPaid = status === 'ontime' || status === 'late'
+  const isPaid = status === 'ontime' || status === ('late' as string)
   return (
     <div
       ref={setNodeRef}

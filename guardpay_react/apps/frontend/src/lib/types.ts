@@ -14,7 +14,7 @@ export interface Household {
   avatar: string | null
 }
 
-export type PaymentStatus = 'ontime' | 'late' | 'unpaid' | 'upcoming' | 'partial'
+export type PaymentStatus = 'ontime' | 'unpaid' | 'upcoming' | 'partial'
 
 export interface Payment {
   id: number
@@ -112,7 +112,6 @@ export interface DashboardStats {
   totalExpected: number
   completionPct: number
   onTimeCount: number
-  lateCount: number
   currency: string
   month: string
   avgScore: number
