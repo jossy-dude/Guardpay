@@ -143,16 +143,23 @@ interface HeatCell {
   level: number
   today: boolean
   col: number
+  monthKey: string
+}
+
+interface HeatMonth {
+  col: number
+  label: string
+  monthKey: string
+}
+
+function isoOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function buildHeatCells(
   payments: { paidDate: string | null }[],
   settings: { calendarMode?: 'gregorian' | 'ethiopian'; monthLanguage?: 'english' | 'amharic' },
-): {
-  cells: HeatCell[]
-  total: number
-  months: { col: number; label: string }[]
-} {
+): { cells: HeatCell[]; total: number; months: HeatMonth[] } {
   const byDay = new Map<string, number>()
   for (const p of payments) {
     if (!p.paidDate) continue
@@ -160,27 +167,37 @@ function buildHeatCells(
     byDay.set(iso, (byDay.get(iso) ?? 0) + 1)
   }
   const today = new Date()
-  const todayIsoStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const todayIsoStr = isoOf(today)
+
   const start = new Date(today)
   start.setDate(start.getDate() - 370)
   start.setDate(start.getDate() - start.getDay())
 
+  // render through the end of the current week so the last column is full
+  const end = new Date(today)
+  end.setDate(end.getDate() + (6 - end.getDay()))
+
   const eth = settings.calendarMode === 'ethiopian'
   const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const cells: HeatCell[] = []
-  const months: { col: number; label: string }[] = []
-  const labeled = new Set<number>()
+  const months: HeatMonth[] = []
+  const labeled = new Set<string>()
   let total = 0
   let max = 0
 
   const d = new Date(start)
   let idx = 0
-  while (d <= today) {
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  while (d <= end) {
+    const iso = isoOf(d)
+    const monthKey = iso.slice(0, 7)
     const col = Math.floor(idx / 7)
-    if (d.getDate() <= 7 && !labeled.has(col)) {
-      labeled.add(col)
-      months.push({ col, label: eth ? ethMonthShort(iso.slice(0, 7), settings.monthLanguage ?? 'english') : (names[d.getMonth()] ?? '') })
+    if (d.getDate() === 1 && !labeled.has(monthKey)) {
+      labeled.add(monthKey)
+      months.push({
+        col,
+        label: eth ? ethMonthShort(monthKey, settings.monthLanguage ?? 'english') : (names[d.getMonth()] ?? ''),
+        monthKey,
+      })
     }
     const count = byDay.get(iso) ?? 0
     total += count
@@ -192,6 +209,7 @@ function buildHeatCells(
       level: 0,
       today: iso === todayIsoStr,
       col,
+      monthKey,
     })
     idx++
     d.setDate(d.getDate() + 1)
@@ -243,22 +261,24 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
           style={{
             gridTemplateRows: `repeat(7, ${cellSize}px)`,
             gap: `${gap}px`,
-            marginTop: 28,
+            marginTop: 20,
             width: 26,
             fontSize: 11,
             lineHeight: `${cellSize}px`,
             color: muted,
           }}
         >
-          <span style={{ gridRow: 2 }}>M</span>
-          <span style={{ gridRow: 4 }}>W</span>
-          <span style={{ gridRow: 6 }}>F</span>
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((letter, i) => (
+            <span key={letter} style={{ gridRow: i + 1 }}>
+              {letter}
+            </span>
+          ))}
         </div>
         <div className="min-w-0 flex-1">
           <div className="relative mb-1 font-mono" style={{ height: 16 }}>
             {heat.months.map((m) => (
               <span
-                key={m.col}
+                key={m.monthKey}
                 className="absolute"
                 style={{ left: m.col * pitch + pitch / 2, transform: 'translateX(-50%)', fontSize: 11, color: muted }}
               >
@@ -266,28 +286,44 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
               </span>
             ))}
           </div>
-          <div
-            className="grid justify-between"
-            style={{
-              gridAutoFlow: 'column',
-              gridTemplateRows: `repeat(7, ${cellSize}px)`,
-              gridAutoColumns: `${cellSize}px`,
-              gap: `${gap}px`,
-            }}
-          >
-            {heat.cells.map((c) => (
+          <div className="relative">
+            {heat.months.slice(1).map((m) => (
               <span
-                key={c.iso}
-                title={`${c.date.toDateString()} — ${c.count} ${c.count === 1 ? 'payment' : 'payments'}`}
-                className="relative rounded-md transition-transform duration-100 hover:z-10 hover:scale-110"
+                key={`sep-${m.monthKey}`}
+                className="pointer-events-none absolute z-10"
                 style={{
-                  width: cellSize,
-                  height: cellSize,
-                  background: c.count === 0 ? lv0 : heatRamp[c.level - 1],
-                  boxShadow: c.today ? `0 0 0 2px ${accent}` : undefined,
+                  left: m.col * pitch - gap / 2,
+                  top: 0,
+                  bottom: 0,
+                  width: 1,
+                  background: 'var(--border)',
                 }}
+                aria-hidden="true"
               />
             ))}
+            <div
+              className="grid"
+              style={{
+                gridAutoFlow: 'column',
+                gridTemplateRows: `repeat(7, ${cellSize}px)`,
+                gridAutoColumns: `${cellSize}px`,
+                gap: `${gap}px`,
+              }}
+            >
+              {heat.cells.map((c) => (
+                <span
+                  key={c.iso}
+                  title={`${c.date.toDateString()} — ${c.count} ${c.count === 1 ? 'payment' : 'payments'}`}
+                  className="relative rounded-md transition-transform duration-100 hover:z-10 hover:scale-110"
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    background: c.count === 0 ? lv0 : heatRamp[c.level - 1],
+                    boxShadow: c.today ? `0 0 0 2px ${accent}` : undefined,
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
