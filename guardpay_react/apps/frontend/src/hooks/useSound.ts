@@ -187,7 +187,7 @@ function flavorFor(themeId: string): { rate: number; gain: number } {
   return { rate: 0.92 + (h % 5) * 0.05, gain: 0.9 + (h % 3) * 0.08 }
 }
 
-function playPreset(ctx: AudioContext, preset: SoundPreset, flavor: { rate: number; gain: number }, force: boolean) {
+function playPreset(ctx: AudioContext, preset: SoundPreset, flavor: { rate: number; gain: number }) {
   const entry = FILE_BANK[preset]
   if (entry?.files.length) {
     const file = entry.files[Math.floor(Math.random() * entry.files.length)]
@@ -209,8 +209,7 @@ function playPreset(ctx: AudioContext, preset: SoundPreset, flavor: { rate: numb
       return
     }
   }
-  if (!force && entry?.files.length) return // buffer not ready yet — wait for warm-up
-  // synth fallback
+  // synth fallback — plays immediately when the real buffer isn't ready
   const tones = PRESETS[preset]
   if (!tones) return
   const now = ctx.currentTime
@@ -235,25 +234,25 @@ function playPreset(ctx: AudioContext, preset: SoundPreset, flavor: { rate: numb
 export function useSound() {
   const play = useCallback((name: SoundPreset | 'toggle' | 'paid' | 'unpay' | 'error' | 'hover') => {
     if (useSoundStore.getState().muted) return
-    playInternal(name, false)
+    playInternal(name)
   }, [])
 
   /** Preview always plays (bypasses mute) so users can audition sounds. */
   const preview = useCallback((name: SoundPreset | 'toggle' | 'paid' | 'unpay' | 'error' | 'hover') => {
-    playInternal(name, true)
+    playInternal(name)
   }, [])
 
   return { play, preview }
 }
 
-function playInternal(name: SoundPreset | 'toggle' | 'paid' | 'unpay' | 'error' | 'hover', force: boolean) {
+function playInternal(name: SoundPreset | 'toggle' | 'paid' | 'unpay' | 'error' | 'hover') {
   try {
     const ctx = getCtx()
     if (!ctx) return
     const theme = resolveTheme()
     const semantic = name as 'toggle' | 'paid' | 'unpay' | 'error' | 'hover'
     const resolved = semantic in theme.sound ? theme.sound[semantic] : (name as SoundPreset)
-    playPreset(ctx, resolved, flavorFor(theme.id), force)
+    playPreset(ctx, resolved, flavorFor(theme.id))
   } catch {
     /* audio unavailable */
   }
