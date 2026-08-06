@@ -24,9 +24,9 @@ import { useSaveSettings } from '@/lib/hooks'
 import { useSoundStore, useSound, SOUND_CREDITS } from '@/hooks/useSound'
 import { cn } from '@/lib/cn'
 import { toastError, toastSuccess } from '@/components/toast/store'
-import type { Settings } from '@/lib/types'
-import { THEME_LIST, useThemeStore, FONTS, resolveTheme } from '@/features/theming/themes'
-import { PixelSprite } from '@/components/shared/PixelSprite'
+import type { MascotSpriteKey, Settings, ThemeId } from '@/lib/types'
+import { THEME_LIST, useThemeStore, FONTS, resolveTheme, type ThemeDefinition } from '@/features/theming/themes'
+import { AnimatedMascot } from '@/components/shared/AnimatedMascot'
 import { ResidentAvatar } from '@/components/shared/ResidentAvatar'
 import { buildExportRows, exportCSV, exportJSON, exportXLSX, stampName } from '@/features/exports/exports'
 import { buildJsonBackup } from '@/features/exports/exports'
@@ -47,6 +47,25 @@ const TABS: { id: TabId; label: string; icon: typeof SettingsIcon }[] = [
   { id: 'diagnostics', label: 'Diagnostics', icon: Bug },
   { id: 'developer', label: 'Developer', icon: ShieldCheck },
 ]
+
+function MiniDashboardPreview({ colors, sprite }: { colors: ThemeDefinition['colors']; sprite: MascotSpriteKey }) {
+  return (
+    <div className="flex h-full flex-col gap-1.5 rounded-md border border-black/10 bg-black/5 p-2" style={{ color: '#111' }}>
+      <div className="h-1.5 w-3/4 rounded-sm" style={{ background: colors.primary }} />
+      <div className="flex gap-1">
+        {[colors.success, colors.success, colors.danger, colors.accent].map((c, i) => (
+          <span key={i} className="h-1.5 flex-1 rounded-sm" style={{ background: c }} />
+        ))}
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="h-4 w-4 self-end" style={{ background: colors.secondary, borderRadius: 4 }}>
+          <AnimatedMascot sprite={sprite} size={16} />
+        </span>
+        <span className="h-4 w-10 rounded-sm" style={{ background: colors.heat[2] ?? colors.accent }} />
+      </div>
+    </div>
+  )
+}
 
 export function SettingsPage() {
   const [tab, setTab] = useState<TabId>('general')
@@ -250,6 +269,7 @@ function AppearanceTab() {
   const resetOverrides = useThemeStore((s) => s.resetOverrides)
   const resolved = resolveTheme()
   const overridden = !!fontOverride || !!densityOverride || radiusOverride !== null
+  const [hoverId, setHoverId] = useState<ThemeId | null>(null)
 
   const densities = ['compact', 'comfortable', 'spacious'] as const
   const radii = [0, 6, 12, 16] as const
@@ -275,34 +295,47 @@ function AppearanceTab() {
               <button
                 key={t.id}
                 onClick={() => setTheme(t.id)}
+                onMouseEnter={() => setHoverId(t.id)}
+                onMouseLeave={() => setHoverId(null)}
                 className={cn(
-                  'group relative overflow-hidden rounded-[var(--radius)] border p-3 text-left transition',
+                  'group relative overflow-hidden rounded-[var(--radius)] border p-3 text-left transition-all',
                   active ? 'border-[var(--primary)] ring-2 ring-[var(--primary)]/40' : 'border-[var(--border)] hover:border-[var(--primary)]/50',
                 )}
                 style={{
-                  background: t.colors.card,
+                  background: `color-mix(in srgb, ${t.colors.card} 78%, transparent)`,
                   color: t.colors.foreground,
+                  backdropFilter: 'blur(6px)',
                 }}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="mb-2 h-8 w-full rounded-sm" style={{ background: `linear-gradient(135deg, ${t.colors.primary}, ${t.colors.accent})` }} />
-                  <div className="mb-2 flex shrink-0 items-center justify-center rounded-full" style={{ background: t.colors.secondary }}>
-                    <PixelSprite sprite={t.sprite} size={34} />
-                  </div>
-                </div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-sm font-semibold">{t.label}</span>
-                </div>
-                <div className="mt-0.5 line-clamp-2 text-[11px] opacity-70">{t.description}</div>
-                <div className="mt-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wide opacity-60">
-                  <span className="rounded bg-black/10 px-1 py-0.5">{t.family}</span>
-                  <span className="rounded bg-black/10 px-1 py-0.5">{t.font.label}</span>
-                  {t.texture && <span className="rounded bg-black/10 px-1 py-0.5">{t.texture}</span>}
-                </div>
+                <span
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background: `linear-gradient(135deg, color-mix(in srgb, ${t.colors.primary} 26%, transparent), color-mix(in srgb, ${t.colors.accent} 22%, transparent))`,
+                  }}
+                  aria-hidden="true"
+                />
+                <span className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: 'color-mix(in srgb, #ffffff 45%, transparent)' }} aria-hidden="true" />
                 {active && (
-                  <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-fg)]">
+                  <span className="absolute right-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-fg)]">
                     <Check size={12} />
                   </span>
+                )}
+                <div className="relative z-10">
+                  <div className="pr-4 text-sm font-semibold">{t.label}</div>
+                  <div className="mt-0.5 line-clamp-2 text-[11px] opacity-70">{t.description}</div>
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wide opacity-60">
+                    <span className="rounded bg-black/10 px-1 py-0.5">{t.family}</span>
+                    <span className="rounded bg-black/10 px-1 py-0.5">{t.font.label}</span>
+                    {t.texture && <span className="rounded bg-black/10 px-1 py-0.5">{t.texture}</span>}
+                  </div>
+                  <span className="pointer-events-none absolute -bottom-0.5 -right-0.5" aria-hidden="true">
+                    <AnimatedMascot sprite={t.sprite} size={24} />
+                  </span>
+                </div>
+                {hoverId === t.id && (
+                  <div className="pointer-events-none absolute inset-0 z-20 p-3" aria-hidden="true">
+                    <MiniDashboardPreview colors={t.colors} sprite={t.sprite} />
+                  </div>
                 )}
               </button>
             )
@@ -382,7 +415,7 @@ function AppearanceTab() {
               className="flex h-20 w-20 items-center justify-center rounded-[var(--radius)]"
               style={{ background: resolved.colors.secondary }}
             >
-              <PixelSprite sprite={resolved.sprite} size={72} />
+              <AnimatedMascot sprite={resolved.sprite} size={72} />
             </div>
             <div className="min-w-0">
               <div className="font-display text-base font-semibold leading-tight" style={{ fontFamily: resolved.font.display }}>
