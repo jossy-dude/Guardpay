@@ -310,19 +310,24 @@ function PaymentHeatmap({ heat }: { heat: ReturnType<typeof buildHeatCells> }) {
                 gap: `${gap}px`,
               }}
             >
-              {heat.cells.map((c) => (
-                <span
-                  key={c.iso}
-                  title={`${c.date.toDateString()} — ${c.count} ${c.count === 1 ? 'payment' : 'payments'}`}
-                  className="relative rounded-md transition-transform duration-100 hover:z-10 hover:scale-110"
-                  style={{
-                    width: cellSize,
-                    height: cellSize,
-                    background: c.count === 0 ? lv0 : heatRamp[c.level - 1],
-                    boxShadow: c.today ? `0 0 0 2px ${accent}` : undefined,
-                  }}
-                />
-              ))}
+              {heat.cells.map((c) => {
+                const shape = 'square' // Task 3 replaces this with settings.heatmapShape
+                const isSquare = shape === 'square'
+                const radius = isSquare ? cellSize * 0.35 : 4
+                const shadow = c.today
+                  ? `0 0 0 2px ${accent}, 0 0 10px ${accent}66`
+                  : isSquare
+                    ? '0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.25)'
+                    : undefined
+                return (
+                  <span
+                    key={c.iso}
+                    title={`${c.date.toDateString()} — ${c.count} ${c.count === 1 ? 'payment' : 'payments'}`}
+                    className="relative transition-transform duration-100 hover:z-10 hover:scale-110"
+                    style={{ width: cellSize, height: cellSize, background: c.count === 0 ? lv0 : heatRamp[c.level - 1], borderRadius: radius, boxShadow: shadow }}
+                  />
+                )
+              })}
             </div>
           </div>
         </div>
