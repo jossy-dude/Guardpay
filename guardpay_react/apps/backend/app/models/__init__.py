@@ -72,7 +72,7 @@ class Payment(Base):
     paid_date: Mapped[str | None] = mapped_column(String(40), nullable=True)
     amount: Mapped[int] = mapped_column(Integer, default=0)
     note: Mapped[str] = mapped_column(Text, default="")
-    source: Mapped[str] = mapped_column(String(40), default="manual")  # manual | partial
+    source: Mapped[str] = mapped_column(String(40), default="manual")  # manual
     created_at: Mapped[str] = mapped_column(String(40))
     updated_at: Mapped[str] = mapped_column(String(40))
 

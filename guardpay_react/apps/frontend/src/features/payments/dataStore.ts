@@ -8,10 +8,12 @@ import type {
   FeeChange,
   GuardPayment,
   Household,
+  HouseStats,
   Payment,
   Reminder,
   Settings,
 } from '@/lib/types'
+import { computeAllHouseStats } from '@/features/scoring/scoring'
 
 interface DataState {
   houses: Household[]
@@ -21,6 +23,8 @@ interface DataState {
   reminders: Reminder[]
   aliases: Alias[]
   feeChanges: FeeChange[]
+  /** Derived once per state payload — memoized so consumers never recompute. */
+  allStats: Map<number, HouseStats>
   loaded: boolean
   setState: (d: ApiStateResponse) => void
   setHouses: (h: Household[]) => void
@@ -69,10 +73,11 @@ export const useDataStore = create<DataState>()((set) => ({
   reminders: [],
   aliases: [],
   feeChanges: [],
+  allStats: new Map(),
   loaded: false,
   setState: (d) =>
     set(() => {
-      const houses = d.houses.map((h) => ({
+      const houses: Household[] = d.houses.map((h) => ({
         id: h.id,
         name: h.name,
         houseNumber: h.house_number,
@@ -86,20 +91,35 @@ export const useDataStore = create<DataState>()((set) => ({
         avatar: h.avatar ?? null,
       }))
       const byId = new Map(houses.map((h) => [h.id, h]))
+      const payments: Payment[] = d.payments.map((p) => ({
+        id: p.id,
+        houseId: p.house_id,
+        monthKey: p.month_key,
+        paidDate: p.paid_date,
+        amount: p.amount,
+        note: p.note,
+        source: p.source ?? 'manual',
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      }))
+      const reminders: Reminder[] = d.reminders.map((r) => {
+        const house = byId.get(r.house_id)
+        return {
+          id: r.id,
+          houseId: r.house_id,
+          houseName: house?.name ?? '',
+          houseNumber: house?.houseNumber ?? '',
+          isActive: r.is_active,
+          note: r.note,
+          createdAt: r.created_at,
+          remindedAt: r.reminded_at,
+        }
+      })
+      const settings = mapSettings(d.settings)
       return {
         houses,
-        payments: d.payments.map((p) => ({
-          id: p.id,
-          houseId: p.house_id,
-          monthKey: p.month_key,
-          paidDate: p.paid_date,
-          amount: p.amount,
-          note: p.note,
-          source: p.source ?? 'manual',
-          createdAt: p.created_at,
-          updatedAt: p.updated_at,
-        })),
-        settings: mapSettings(d.settings),
+        payments,
+        settings,
         guardPayments: d.guard_payments.map((g) => ({
           id: g.id,
           monthKey: g.month_key,
@@ -110,19 +130,7 @@ export const useDataStore = create<DataState>()((set) => ({
           createdAt: g.created_at,
           updatedAt: g.updated_at,
         })),
-        reminders: d.reminders.map((r) => {
-          const house = byId.get(r.house_id)
-          return {
-            id: r.id,
-            houseId: r.house_id,
-            houseName: house?.name ?? '',
-            houseNumber: house?.houseNumber ?? '',
-            isActive: r.is_active,
-            note: r.note,
-            createdAt: r.created_at,
-            remindedAt: r.reminded_at,
-          }
-        }),
+        reminders,
         aliases: d.aliases.map((a) => ({
           id: a.id,
           houseId: a.house_id,
@@ -137,20 +145,23 @@ export const useDataStore = create<DataState>()((set) => ({
           changedAt: f.changed_at,
           note: f.note,
         })),
+        allStats: computeAllHouseStats(houses, payments, settings),
         loaded: true,
       }
     }),
-  setHouses: (h) => set({ houses: h }),
-  setSettings: (s) => set({ settings: s }),
+  setHouses: (h) => set((s) => ({ houses: h, allStats: computeAllHouseStats(h, s.payments, s.settings) })),
+  setSettings: (s2) => set((s) => ({ settings: s2, allStats: computeAllHouseStats(s.houses, s.payments, s2) })),
   upsertHouse: (h) =>
     set((s) => {
       const i = s.houses.findIndex((x) => x.id === h.id)
-      if (i === -1) return { houses: [...s.houses, h] }
-      const houses = [...s.houses]
-      houses[i] = h
-      return { houses }
+      const houses = i === -1 ? [...s.houses, h] : s.houses.map((x) => (x.id === h.id ? h : x))
+      return { houses, allStats: computeAllHouseStats(houses, s.payments, s.settings) }
     }),
-  removeHouse: (id) => set((s) => ({ houses: s.houses.filter((h) => h.id !== id) })),
+  removeHouse: (id) =>
+    set((s) => {
+      const houses = s.houses.filter((h) => h.id !== id)
+      return { houses, allStats: computeAllHouseStats(houses, s.payments, s.settings) }
+    }),
   upsertPayment: (p) =>
     set((s) => {
       const i = s.payments.findIndex(
@@ -159,10 +170,18 @@ export const useDataStore = create<DataState>()((set) => ({
       const payments = [...s.payments]
       if (i === -1) payments.push(p)
       else payments[i] = p
-      return { payments }
+      return { payments, allStats: computeAllHouseStats(s.houses, payments, s.settings) }
     }),
   removePayment: (houseId, monthKey) =>
-    set((s) => ({
-      payments: s.payments.filter((p) => !(p.houseId === houseId && p.monthKey === monthKey)),
-    })),
+    set((s) => {
+      const payments = s.payments.filter((p) => !(p.houseId === houseId && p.monthKey === monthKey))
+      return { payments, allStats: computeAllHouseStats(s.houses, payments, s.settings) }
+    }),
 }))
+
+/** Memoized registry of every household's computed stats. Derived once per
+ *  state change — shared by Dashboard, Records, Data, Analytics and the
+ *  mascot so none of them re-run `computeAllHouseStats` per render. */
+export function useAllHouseStats(): Map<number, HouseStats> {
+  return useDataStore((s) => s.allStats)
+}

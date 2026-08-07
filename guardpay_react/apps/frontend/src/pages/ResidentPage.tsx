@@ -34,7 +34,7 @@ export function ResidentPage() {
   const [submitted, setSubmitted] = useState('')
 
   const lookup = usePublicLookup(submitted, submitted.length >= 4)
-  const status = usePublicStatus(lookup.data ? lookup.data.house_id : null)
+  const status = usePublicStatus(lookup.data ? lookup.data.house_id : null, submitted)
 
   return (
     <Layout>

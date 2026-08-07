@@ -14,7 +14,6 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { RemindersPage } from '@/pages/RemindersPage'
 import { DataPage } from '@/pages/DataPage'
 import { ResidentPage } from '@/pages/ResidentPage'
-import { AppearancePage } from '@/pages/AppearancePage'
 import { AvatarPicker } from '@/components/shared/AvatarPicker'
 
 // Lazy-loaded: heavier pages (charts + export libs) load on demand, not on startup.
@@ -80,9 +79,6 @@ function App() {
         <Route path="/settings">
           <SettingsPage />
         </Route>
-        <Route path="/appearance">
-          <AppearancePage />
-        </Route>
         <Route path="/reminders">
           <RemindersPage />
         </Route>
@@ -92,7 +88,7 @@ function App() {
         <Route path="/resident">
           <ResidentPage />
         </Route>
-        <FallbackRoute knownPaths={['/', '/analytics', '/leaderboard', '/ledger', '/settings', '/appearance', '/reminders', '/data', '/resident']}>
+        <FallbackRoute knownPaths={['/', '/analytics', '/leaderboard', '/ledger', '/settings', '/reminders', '/data', '/resident']}>
           <NotFound />
         </FallbackRoute>
         </main>

@@ -32,7 +32,6 @@ interface StampMeta {
 
 const STAMP_META: Record<MonthStatus, StampMeta> = {
   ontime: { label: 'Paid', fill: 'var(--success)', on: 'var(--bg)' },
-  partial: { label: 'Partial', fill: 'var(--accent)', on: 'var(--bg)' },
   unpaid: { label: 'Unpaid', border: 'var(--danger)', text: 'var(--danger)' },
   upcoming: { label: 'Due', border: 'var(--muted)', text: 'var(--muted)' },
 }

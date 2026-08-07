@@ -34,7 +34,17 @@ export function HoverCard({
   }
 
   return (
-    <div ref={wrapRef} className="inline-flex" onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)}>
+    <div
+      ref={wrapRef}
+      className="inline-flex"
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setPos(null)}
+      onFocusCapture={handleEnter}
+      onBlurCapture={() => setPos(null)}
+      onKeyDownCapture={(e) => {
+        if (e.key === 'Escape') setPos(null)
+      }}
+    >
       {trigger}
       <AnimatePresence>
         {pos && (

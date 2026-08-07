@@ -37,7 +37,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useDataStore } from '@/features/payments/dataStore'
+import { useDataStore, useAllHouseStats } from '@/features/payments/dataStore'
 import { computeAllHouseStats, statusForMonth } from '@/features/scoring/scoring'
 import { Layout, SectionHead } from '@/components/layout/Layout'
 import { ScoreDots, TierBadge } from '@/components/shared/animations'
@@ -88,20 +88,18 @@ const COLUMNS: Column[] = [
 const ACTION_W = '3.5rem'
 
 const MONTHS_BACK = 12
-const STATUS_RANK: Record<MonthStatus, number> = { ontime: 0, partial: 1, unpaid: 2, upcoming: 3 }
+const STATUS_RANK: Record<MonthStatus, number> = { ontime: 0, unpaid: 1, upcoming: 2 }
 
 /* ---------------- AnyType tag palette (10-color system) ---------------- */
 /** Payment status → AnyType tag colors (text on very-light bg). */
 const TAG_PALETTE: Record<MonthStatus, { text: string; bg: string }> = {
   ontime: { text: '#0caaa3', bg: '#d9f6f4' }, // teal
-  partial: { text: '#9e30c4', bg: '#f3e8ff' }, // purple
   unpaid: { text: '#e2400c', bg: '#ffede9' }, // red
   upcoming: { text: '#4f6af0', bg: '#e4e8fc' }, // blue
 }
 
 const TAG_LABEL: Record<MonthStatus, string> = {
   ontime: 'Paid',
-  partial: 'Partial',
   unpaid: 'Unpaid',
   upcoming: 'Due',
 }
@@ -196,17 +194,19 @@ export function RecordsPage() {
   const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set())
 
   const active = useMemo(() => houses.filter((h) => h.active), [houses])
-  const stats = useMemo(() => computeAllHouseStats(active, payments, settings), [active, payments, settings])
+  const stats = useAllHouseStats()
+  const nowKey = currentMonthKey()
 
   const months = useMemo(() => {
     const arr: string[] = []
-    let cur = addMonths(currentMonthKey(), -(MONTHS_BACK - 1))
+    let cur = addMonths(nowKey, -(MONTHS_BACK - 1))
     for (let i = 0; i < MONTHS_BACK; i++) {
       arr.push(cur)
       cur = addMonths(cur, 1)
     }
     return arr.reverse()
-  }, [])
+    // keyed on the current month so the 12-month picker advances past midnight
+  }, [nowKey])
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -470,7 +470,7 @@ function FilterMenuBody({
   onChange: (v: MonthStatus | null) => void
 }) {
   const { close } = usePopover()
-  const statuses: MonthStatus[] = ['ontime', 'partial', 'unpaid', 'upcoming']
+  const statuses: MonthStatus[] = ['ontime', 'unpaid', 'upcoming']
   return (
     <>
       <div className="mb-1 px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Status</div>
@@ -1052,7 +1052,7 @@ const BOARD_BUCKETS: { key: BucketKey }[] = [
 
 function bucketFor(stats: ReturnType<typeof computeAllHouseStats>, house: Household, month: string): BucketKey {
   const s = statusForMonth(stats.get(house.id), month)
-  if (s === 'ontime' || s === 'partial') return 'ontime'
+  if (s === 'ontime') return 'ontime'
   if (s === 'unpaid') return 'unpaid'
   return 'upcoming'
 }
@@ -1120,7 +1120,7 @@ function BoardView({ rows, stats, month, query, counts, isToggling, onToggle, on
     const from = dragFrom.current ?? to
     if (house && from && to && from !== to) {
       const targetPaid = to === 'ontime'
-      const currentlyPaid = statusForMonth(stats.get(house.id), month) === 'ontime' || statusForMonth(stats.get(house.id), month) === 'partial'
+      const currentlyPaid = statusForMonth(stats.get(house.id), month) === 'ontime'
       if (targetPaid !== currentlyPaid) onToggle(house, currentlyPaid)
       setOrder((prev) => reconcileOrder(prev, rows, stats, month))
     }
@@ -1259,7 +1259,7 @@ function BoardCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: house.id })
   const s = stats.get(house.id)
   const status = statusForMonth(s, month)
-  const isPaid = status === 'ontime' || status === 'partial'
+  const isPaid = status === 'ontime'
   return (
     <div
       ref={setNodeRef}

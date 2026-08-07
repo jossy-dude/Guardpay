@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,14 +75,3 @@ async def add_guard_payment(data: GuardCreate, session: AsyncSession = Depends(g
         return {"ok": True, "id": row.id, "updated": True}
     await session.refresh(gp)
     return {"ok": True, "id": gp.id, "updated": False}
-
-
-@router.post("/payments/delete")
-async def delete_guard_payment(body: dict, session: AsyncSession = Depends(get_db)):
-    await maybe_backup_before_change("guard-delete")
-    gp = await session.get(GuardPayment, body.get("id"))
-    if not gp:
-        raise HTTPException(404, "Guard payment not found")
-    await session.delete(gp)
-    await session.commit()
-    return {"ok": True}

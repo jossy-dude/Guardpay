@@ -16,8 +16,9 @@ def build_history(created_month: str, payments: list[dict], due_day: int, end_mo
     ye, me = map(int, today.split("-"))
     by_month = {}
     for p in payments:
-        if p.get("paid_date"):
-            by_month[p["month_key"]] = p
+        # A payment row signals "paid" for that month even when the stored
+        # paid_date is missing/empty (toggle can create a paid row with no date).
+        by_month[p["month_key"]] = p
 
     history = []
     yy, mm = map(int, created_month.split("-"))
@@ -27,17 +28,26 @@ def build_history(created_month: str, payments: list[dict], due_day: int, end_mo
         pay = by_month.get(key)
         if pay:
             from datetime import date as _d
-            paid = _d.fromisoformat(pay["paid_date"])
             import calendar
 
             last_day = calendar.monthrange(yy, mm)[1]
+            # Default a missing/unparseable paid_date to the month end so the
+            # payment still scores as resolved/ontime instead of unpaid.
+            raw = pay.get("paid_date")
+            if not raw:
+                raw = f"{key}-{last_day:02d}"
+            try:
+                paid = _d.fromisoformat(raw)
+            except ValueError:
+                paid = _d(yy, mm, last_day)
+                raw = f"{key}-{last_day:02d}"
             due = _d(yy, mm, min(due_day, last_day))
             days_diff = (paid - due).days
             history.append({
                 "month_key": key,
                 "status": "ontime",
                 "days_diff": days_diff,
-                "paid_date": pay["paid_date"],
+                "paid_date": raw,
                 "amount": pay["amount"],
             })
         else:

@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { useDataStore } from '@/features/payments/dataStore'
-import { computeAllHouseStats, statusForMonth } from '@/features/scoring/scoring'
+import { useDataStore, useAllHouseStats } from '@/features/payments/dataStore'
+import { statusForMonth } from '@/features/scoring/scoring'
 import { Layout, Section, SectionHead } from '@/components/layout/Layout'
 import { ScoreDots } from '@/components/shared/animations'
 import { Input } from '@/components/ui/input'
@@ -18,7 +18,6 @@ type StatusFilter = 'all' | 'active' | 'inactive' | 'paid' | 'unpaid'
 
 export function DataPage() {
   const houses = useDataStore((s) => s.houses)
-  const payments = useDataStore((s) => s.payments)
   const settings = useDataStore((s) => s.settings)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
@@ -26,7 +25,7 @@ export function DataPage() {
   const [asc, setAsc] = useState(true)
   const houseMutation = useHouseMutation()
 
-  const stats = useMemo(() => computeAllHouseStats(houses, payments, settings), [houses, payments, settings])
+  const stats = useAllHouseStats()
 
   const currentMonth = currentMonthKey()
 
@@ -636,7 +635,7 @@ function BackupsSection() {
           </table>
           <p className="mt-3 text-xs text-[var(--muted)]">
             Restoring replaces the live database with the chosen snapshot. A safety snapshot of the current data is taken immediately before the restore (a
-            <span className="font-mono"> -prerestore</span> file appears in the backups list), and the server is restarted afterwards. A snapshot is also
+            <span className="font-mono"> -prerestore</span> file appears in the backups list), and the ledger is reloaded from the restored file. A snapshot is also
             taken automatically before bulk import, payment edits, or deletions whenever &quot;Backup before changes&quot; is enabled in Settings.
           </p>
         </div>

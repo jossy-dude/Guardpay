@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Volume2,
 } from 'lucide-react'
-import { useDataStore } from '@/features/payments/dataStore'
+import { useDataStore, useAllHouseStats } from '@/features/payments/dataStore'
 import { useAuthStore } from '@/features/auth/authStore'
 import { api } from '@/lib/api'
 import { useRouter } from '@/lib/router'
@@ -51,7 +51,10 @@ const TABS: { id: TabId; label: string; icon: typeof SettingsIcon }[] = [
 
 function MiniDashboardPreview({ colors, sprite }: { colors: ThemeDefinition['colors']; sprite: MascotSpriteKey }) {
   return (
-    <div className="flex h-full flex-col gap-1.5 rounded-md border border-black/10 bg-black/5 p-2" style={{ color: '#111' }}>
+    <div
+      className="flex h-full flex-col gap-1.5 rounded-md border p-2"
+      style={{ backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }}
+    >
       <div className="h-1.5 w-3/4 rounded-sm" style={{ background: colors.primary }} />
       <div className="flex gap-1">
         {[colors.success, colors.success, colors.danger, colors.accent].map((c, i) => (
@@ -716,11 +719,12 @@ function ExportTab() {
   const payments = useDataStore((s) => s.payments)
   const guardPayments = useDataStore((s) => s.guardPayments)
   const settings = useDataStore((s) => s.settings)
+  const allStats = useAllHouseStats()
   const [template, setTemplate] = useState<ReportTemplate>('monthly')
   const [busy, setBusy] = useState<string | null>(null)
 
   const month = currentMonthKey()
-  const rows = useMemo(() => buildExportRows(houses, payments, month), [houses, payments, month])
+  const rows = useMemo(() => buildExportRows(houses, payments, month, {}, allStats), [houses, payments, month, allStats])
   const data = useMemo(
     () => buildReportData(houses, payments, guardPayments, settings),
     [houses, payments, guardPayments, settings],
@@ -770,21 +774,23 @@ function ExportTab() {
         </Section>
 
         <Section>
-          <SectionHead title="Full backup" kicker="JSON — everything" />
+          <SectionHead title="Export summary" kicker="JSON — summary only" />
           <Button
             className="w-full justify-start"
             variant="outline"
             disabled={!!busy}
             onClick={() =>
               run('json', () =>
-                exportJSON(buildJsonBackup(houses, payments, guardPayments, settings), stampName('guardpay-backup', 'json')),
+                exportJSON(buildJsonBackup(houses, payments, guardPayments, settings), stampName('guardpay-summary', 'json')),
               )
             }
           >
-            <FileJson size={16} /> Download full backup
+            <FileJson size={16} /> Download summary (JSON)
           </Button>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            Includes houses, payments, guard payments and settings. Restore is done from the Data page.
+            A JSON summary of households, payments and guard payments for reading/sharing — it omits ids, aliases,
+            fee history, reminders and is not a restorable backup. To snapshot or restore the live database, use the
+            backups on the Data page.
           </p>
         </Section>
 

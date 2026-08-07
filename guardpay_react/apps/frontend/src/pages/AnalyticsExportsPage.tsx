@@ -14,8 +14,7 @@ import {
   Area,
 } from 'recharts'
 import { FileJson, FileSpreadsheet, FileText } from 'lucide-react'
-import { useDataStore } from '@/features/payments/dataStore'
-import { computeAllHouseStats } from '@/features/scoring/scoring'
+import { useDataStore, useAllHouseStats } from '@/features/payments/dataStore'
 import { Layout, Section, SectionHead } from '@/components/layout/Layout'
 import { CountUp } from '@/components/shared/animations'
 import { Card } from '@/components/ui/card'
@@ -44,6 +43,7 @@ export function AnalyticsExportsPage() {
   const payments = useDataStore((s) => s.payments)
   const guardPayments = useDataStore((s) => s.guardPayments)
   const settings = useDataStore((s) => s.settings)
+  const allStats = useAllHouseStats()
   const [yearOffset, setYearOffset] = useState(0)
   const [template, setTemplate] = useState<ReportTemplate>('monthly')
   const [busy, setBusy] = useState<string | null>(null)
@@ -69,11 +69,11 @@ export function AnalyticsExportsPage() {
 
   const sheetRows = useMemo(() => {
     const opts = { includeNotes: sheetNotes, filter: sheetFilter }
-    if (sheetMode === 'range') return buildExportRangeRows(houses, payments, rangeFrom, rangeTo, opts)
-    return buildExportRows(houses, payments, sheetMonth, opts)
-  }, [houses, payments, sheetMode, sheetMonth, rangeFrom, rangeTo, sheetFilter, sheetNotes])
+    if (sheetMode === 'range') return buildExportRangeRows(houses, payments, rangeFrom, rangeTo, opts, allStats)
+    return buildExportRows(houses, payments, sheetMonth, opts, allStats)
+  }, [houses, payments, sheetMode, sheetMonth, rangeFrom, rangeTo, sheetFilter, sheetNotes, allStats])
 
-  const rows = useMemo(() => buildExportRows(houses, payments, month), [houses, payments, month])
+  const rows = useMemo(() => buildExportRows(houses, payments, month, {}, allStats), [houses, payments, month, allStats])
   const data = useMemo(
     () => buildReportData(houses, payments, guardPayments, settings, { monthKey: reportMonth, year: reportYear }),
     [houses, payments, guardPayments, settings, reportMonth, reportYear],
@@ -120,7 +120,6 @@ export function AnalyticsExportsPage() {
       }
     })
 
-    const allStats = computeAllHouseStats(active, payments, settings)
     const onTimeSeries = months.map((mk) => {
       let resolved = 0
       let onTime = 0
@@ -150,7 +149,7 @@ export function AnalyticsExportsPage() {
           : 0,
       },
     }
-  }, [houses, payments, settings, yearOffset])
+  }, [houses, payments, yearOffset, allStats])
 
   const paid = rows.filter((r) => r.paid).length
   const expected = rows.reduce((a, r) => a + r.fee, 0)
@@ -325,22 +324,23 @@ export function AnalyticsExportsPage() {
         </Section>
 
         <Section>
-          <SectionHead title="Full backup" kicker="JSON — everything" />
+          <SectionHead title="Export summary" kicker="JSON — summary only" />
           <Button
             className="w-full justify-start"
             variant="outline"
             disabled={!!busy}
             onClick={() =>
-              run('json', () => exportJSON(buildJsonBackup(houses, payments, guardPayments, settings), stampName('guardpay-backup', 'json')))
+              run('json', () => exportJSON(buildJsonBackup(houses, payments, guardPayments, settings), stampName('guardpay-summary', 'json')))
             }
           >
-            <FileJson size={16} /> Download full backup
+            <FileJson size={16} /> Download summary (JSON)
           </Button>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            Includes houses, payments, guard payments and settings as JSON.
+            A JSON summary of households, payments and guard payments for reading/sharing — it omits ids, aliases,
+            fee history, reminders and is not a restorable backup.
           </p>
           <div className="mt-2 rounded-md border border-[var(--border)] p-2.5 text-xs text-[var(--muted)]">
-            For one-click restore of the live database, use the snapshots on the{' '}
+            To snapshot or restore the live database, use the backups on the{' '}
             <a href="#/data" className="font-medium text-[var(--primary)]">
               Data page
             </a>

@@ -1,13 +1,12 @@
 import secrets
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
-from ..models import AuthSecret
-from ..schemas import PinLogin, PinSet
+from ..schemas import PinDisable, PinLogin, PinSet
 from ..services.auth import (
     get_or_create_auth,
     hash_pin,
@@ -21,6 +20,40 @@ from ..services.backups import maybe_backup_before_change
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 SESSION_COOKIE = "guardpay_session"
+
+# PIN login throttle: per-client-IP attempt limiter with exponential backoff.
+# PIN space is tiny (~10k combos), so brute force must be slowed, while keeping
+# the threshold high enough that a genuine user never self-locks.
+_LOGIN_MAX_FAILS = 10
+_LOGIN_WINDOW = 600.0  # seconds over which failures are counted
+_LOGIN_BACKOFF = 60.0  # base seconds for the first lockout
+_log_failures: dict[str, list[float]] = {}
+
+
+def _login_block(request: Request) -> int:
+    """Return the remaining lockout seconds for this client IP (0 = allowed)."""
+    ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    fails = [t for t in _log_failures.get(ip, []) if now - t <= _LOGIN_WINDOW]
+    if len(fails) < _LOGIN_MAX_FAILS:
+        _log_failures[ip] = fails
+        return 0
+    # exponential backoff: every block lengthens by a factor of two
+    wait = _LOGIN_BACKOFF * (2 ** ((len(fails) - _LOGIN_MAX_FAILS) // _LOGIN_MAX_FAILS))
+    elapsed = now - fails[-1]
+    if elapsed >= wait:
+        return 0
+    return int(wait - elapsed)
+
+
+def _login_ok(request: Request) -> None:
+    ip = request.client.host if request.client else "unknown"
+    _log_failures.pop(ip, None)
+
+
+def _login_fail(request: Request) -> None:
+    ip = request.client.host if request.client else "unknown"
+    _log_failures.setdefault(ip, []).append(time.monotonic())
 
 
 def _ts() -> str:
@@ -53,12 +86,18 @@ async def auth_status(request: Request, session: AsyncSession = Depends(get_db))
 
 
 @router.post("/login")
-async def login(data: PinLogin, response: Response, session: AsyncSession = Depends(get_db)):
+async def login(data: PinLogin, request: Request, response: Response, session: AsyncSession = Depends(get_db)):
+    lock = _login_block(request)
+    if lock > 0:
+        raise HTTPException(429, f"Too many failed attempts. Try again in {lock} seconds.")
     auth = await load_auth(session)
     if not auth.pin_enabled or not auth.pin_hash or not auth.pin_salt:
+        _login_ok(request)
         return {"ok": True, "note": "no pin required"}
     if not verify_pin(data.pin, auth.pin_salt, auth.pin_hash, auth.iterations):
+        _login_fail(request)
         raise HTTPException(401, "Incorrect PIN")
+    _login_ok(request)
     token = make_session_token(auth.session_secret)
     response.set_cookie(
         SESSION_COOKIE,
@@ -68,8 +107,6 @@ async def login(data: PinLogin, response: Response, session: AsyncSession = Depe
         max_age=60 * 60 * 24 * 30,
         path="/",
     )
-    auth.last_verified_at = _ts()
-    await session.commit()
     return {"ok": True}
 
 
@@ -98,11 +135,11 @@ async def set_pin(data: PinSet, session: AsyncSession = Depends(get_db)):
 
 
 @router.post("/disable")
-async def disable_pin(body: dict, session: AsyncSession = Depends(get_db)):
+async def disable_pin(data: PinDisable, session: AsyncSession = Depends(get_db)):
     await maybe_backup_before_change("pin-disable")
     auth = await get_or_create_auth(session)
     if auth.pin_enabled:
-        cur = body.get("current_pin")
+        cur = data.current_pin
         if not cur or not verify_pin(cur, auth.pin_salt, auth.pin_hash, auth.iterations):
             raise HTTPException(403, "Current PIN required")
     auth.pin_enabled = False

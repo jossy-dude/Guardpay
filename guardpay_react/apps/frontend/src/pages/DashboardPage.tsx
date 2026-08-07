@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Pencil, BellRing, Check, UserRound } from 'lucide-react'
-import { useDataStore } from '@/features/payments/dataStore'
-import { computeAllHouseStats, dashboardStats, statusForMonth } from '@/features/scoring/scoring'
+import { useDataStore, useAllHouseStats } from '@/features/payments/dataStore'
+import { dashboardStats, statusForMonth } from '@/features/scoring/scoring'
 import { useThemeStore, resolveTheme } from '@/features/theming/themes'
 import { Layout, Section, SectionHead } from '@/components/layout/Layout'
 import { CountUp, ScoreDots, TierBadge } from '@/components/shared/animations'
@@ -39,10 +39,7 @@ export function DashboardPage() {
     () => dashboardStats(houses, payments, settings),
     [houses, payments, settings],
   )
-  const houseStats = useMemo(
-    () => computeAllHouseStats(houses.filter((h) => h.active), payments, settings),
-    [houses, payments, settings],
-  )
+  const houseStats = useAllHouseStats()
 
   const filter = query.trim().toLowerCase()
   const shown = houses
@@ -735,11 +732,9 @@ function MonthStatusCard({ status }: { status: MonthStatus | null }) {
   const tone =
     status === 'ontime'
       ? 'color-mix(in srgb, var(--success) 14%, transparent)'
-      : status === 'partial'
-        ? 'color-mix(in srgb, var(--accent) 14%, transparent)'
-        : status === 'upcoming'
-          ? 'color-mix(in srgb, var(--muted) 14%, transparent)'
-          : 'color-mix(in srgb, var(--danger) 14%, transparent)'
+      : status === 'upcoming'
+        ? 'color-mix(in srgb, var(--muted) 14%, transparent)'
+        : 'color-mix(in srgb, var(--danger) 14%, transparent)'
   return (
     <span
       className="inline-flex items-center rounded-md border border-[var(--border)] px-1.5 py-0.5"
@@ -931,12 +926,10 @@ function TimiDots() {
   const avg = useDataStore((s) => {
     const houses = s.houses.filter((h) => h.active)
     if (!houses.length) return 0
-    const payments = s.payments
-    const settings = s.settings
+    const allStats = s.allStats
     let sum = 0
     for (const h of houses) {
-      const stats = computeAllHouseStats([h], payments, settings)
-      sum += stats.get(h.id)?.reliabilityScore ?? 0
+      sum += allStats.get(h.id)?.reliabilityScore ?? 0
     }
     return Math.round(sum / houses.length)
   })

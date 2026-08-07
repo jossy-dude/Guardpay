@@ -3,8 +3,7 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Crown, MoreVertical, Pencil, Trash2 } from 'lucide-react'
-import { useDataStore } from '@/features/payments/dataStore'
-import { computeAllHouseStats } from '@/features/scoring/scoring'
+import { useDataStore, useAllHouseStats } from '@/features/payments/dataStore'
 import { Layout, Section, SectionHead } from '@/components/layout/Layout'
 import { Link } from '@/lib/router'
 import { ScoreDots, TierBadge } from '@/components/shared/animations'
@@ -26,17 +25,16 @@ type SortKey = 'score' | 'streak' | 'rate' | 'name'
 
 export function LeaderboardPage() {
   const houses = useDataStore((s) => s.houses)
-  const payments = useDataStore((s) => s.payments)
   const settings = useDataStore((s) => s.settings)
+  const allStats = useAllHouseStats()
   const [sortKey, setSortKey] = useState<SortKey>('score')
   const [showInactive, setShowInactive] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
 
   const rows = useMemo(() => {
     const active = houses.filter((h) => (showInactive ? true : h.active))
-    const stats = computeAllHouseStats(active, payments, settings)
     const list = active.map((h) => {
-      const s = stats.get(h.id)!
+      const s = allStats.get(h.id)
       return {
         id: h.id,
         houseNumber: h.houseNumber,
@@ -44,11 +42,11 @@ export function LeaderboardPage() {
         fee: h.fee,
         active: h.active,
         avatar: h.avatar,
-        score: s.reliabilityScore,
-        streak: s.currentStreak,
-        maxStreak: s.longestStreak,
-        rate: s.onTimeRate,
-        tier: s.tier,
+        score: s?.reliabilityScore ?? 0,
+        streak: s?.currentStreak ?? 0,
+        maxStreak: s?.longestStreak ?? 0,
+        rate: s?.onTimeRate ?? 0,
+        tier: s?.tier ?? 'at_risk',
       }
     })
     const sorters: Record<SortKey, (a: typeof list[0], b: typeof list[0]) => number> = {
@@ -58,7 +56,7 @@ export function LeaderboardPage() {
       name: (a, b) => a.name.localeCompare(b.name),
     }
     return [...list].sort(sorters[sortKey])
-  }, [houses, payments, settings, sortKey, showInactive])
+  }, [houses, allStats, sortKey, showInactive])
 
   const top = rows[0]
 

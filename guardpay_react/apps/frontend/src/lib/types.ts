@@ -14,7 +14,7 @@ export interface Household {
   avatar: string | null
 }
 
-export type PaymentStatus = 'ontime' | 'unpaid' | 'upcoming' | 'partial'
+export type PaymentStatus = 'ontime' | 'unpaid' | 'upcoming'
 
 export interface Payment {
   id: number
@@ -23,7 +23,7 @@ export interface Payment {
   paidDate: string | null // ISO date
   amount: number
   note: string
-  source: string // 'manual' | 'import' | 'partial'
+  source: string // 'manual' | 'import'
   createdAt: string
   updatedAt: string
 }

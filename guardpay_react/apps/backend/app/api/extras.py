@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
 from ..models import Household, HouseAlias, HouseReminder
-from ..schemas import ReminderCreate
+from ..schemas import AliasAdd, AliasDelete, ReminderCreate, ReminderResolve
 from ..services.backups import maybe_backup_before_change
 
 router = APIRouter(prefix="/api", tags=["extras"])
@@ -64,9 +64,9 @@ async def add_reminder(data: ReminderCreate, session: AsyncSession = Depends(get
 
 
 @router.post("/reminders/resolve")
-async def resolve_reminder(body: dict, session: AsyncSession = Depends(get_db)):
+async def resolve_reminder(data: ReminderResolve, session: AsyncSession = Depends(get_db)):
     await maybe_backup_before_change("reminder-resolve")
-    r = await session.get(HouseReminder, body.get("id"))
+    r = await session.get(HouseReminder, data.id)
     if not r:
         raise HTTPException(404, "Reminder not found")
     r.is_active = False
@@ -94,24 +94,22 @@ async def list_aliases(session: AsyncSession = Depends(get_db)):
 
 
 @router.post("/aliases/add")
-async def add_alias(body: dict, session: AsyncSession = Depends(get_db)):
+async def add_alias(data: AliasAdd, session: AsyncSession = Depends(get_db)):
     await maybe_backup_before_change("alias-add")
-    alias = str(body.get("alias", "")).strip()
-    if not alias or not body.get("house_id"):
-        raise HTTPException(400, "alias and house_id required")
-    session.add(HouseAlias(house_id=int(body["house_id"]), alias=alias, created_at=_ts()))
+    alias = data.alias.strip()
+    session.add(HouseAlias(house_id=data.house_id, alias=alias, created_at=_ts()))
     try:
         await session.commit()
-    except Exception:
+    except IntegrityError:
         await session.rollback()
         raise HTTPException(409, "Alias already exists")
     return {"ok": True}
 
 
 @router.post("/aliases/delete")
-async def delete_alias(body: dict, session: AsyncSession = Depends(get_db)):
+async def delete_alias(data: AliasDelete, session: AsyncSession = Depends(get_db)):
     await maybe_backup_before_change("alias-delete")
-    a = await session.get(HouseAlias, body.get("id"))
+    a = await session.get(HouseAlias, data.id)
     if not a:
         raise HTTPException(404, "Alias not found")
     await session.delete(a)
@@ -164,13 +162,28 @@ async def public_lookup(code: str, session: AsyncSession = Depends(get_db)):
 
 
 @public_router.get("/public/status/{house_id}")
-async def public_status(house_id: int, session: AsyncSession = Depends(get_db)):
-    """Read-only aggregate status for one household (used by the self-service page)."""
+async def public_status(house_id: int, access_code: str = "", session: AsyncSession = Depends(get_db)):
+    """Read-only aggregate status for one household (used by the self-service page).
+
+    Requires the household's access code (query param `access_code`, sha256 of the
+    house_number like `public_lookup`) so `/public/status/1..N` can't be enumerated.
+    Returns only a privacy-safe month-status summary — no raw payment notes.
+    """
+    import hashlib
+
     from ..services.scoring import compute_reliability
 
     house = await session.get(Household, house_id)
     if not house or not house.active:
         raise HTTPException(404, "House not found")
+
+    code = access_code.strip().lower()
+    if len(code) < 4 or len(code) > 16:
+        raise HTTPException(403, "Access code required")
+    digest = hashlib.sha256(house.house_number.encode()).hexdigest()
+    if not (code == digest[:8] or code == digest[:6]):
+        raise HTTPException(403, "Invalid access code")
+
     from ..models import Payment
     from ..api.settings import get_settings
 

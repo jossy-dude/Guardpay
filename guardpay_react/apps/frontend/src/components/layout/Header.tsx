@@ -12,7 +12,6 @@ const NAV = [
   { to: '/analytics', label: 'Analytics & Export', icon: null },
   { to: '/leaderboard', label: 'Leaderboard', icon: null },
   { to: '/ledger', label: 'Ledger', icon: null },
-  { to: '/appearance', label: 'Appearance', icon: null },
 ]
 
 export function Header() {

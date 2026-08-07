@@ -3,7 +3,7 @@
 import type { GuardPayment, Household, HouseStats, Payment, Settings } from '@/lib/types'
 import { currentMonthKey, formatNumber, calendarMonthLabel, calendarMonthShort } from '@/lib/utils'
 import { ETHIOPIAN_MONTHS_AM, ETHIOPIAN_MONTHS_EN, gregorianToEthiopian } from '@/lib/calendar'
-import { computeHouseStats } from '@/features/scoring/scoring'
+import { computeHouseStats, statusForMonth } from '@/features/scoring/scoring'
 
 export type ReportTemplate = 'monthly' | 'guard' | 'scorecard' | 'outstanding' | 'annual'
 
@@ -19,9 +19,13 @@ export interface ReportRow {
   houseNumber: string
   name: string
   fee: number
-  status: 'ontime' | 'unpaid' | 'upcoming' | 'partial'
+  status: 'ontime' | 'unpaid' | 'upcoming'
   paidDate: string | null
   amount: number
+  /** True when the report month falls within the house's active span (i.e. a
+   *  history entry exists for it). Houses created after this month — or a
+   *  month before the house was created — are not-applicable. */
+  applicable: boolean
   score: number
   currentStreak: number
   longestStreak: number
@@ -100,16 +104,21 @@ export function buildReportData(
 
   const rows: ReportRow[] = active.map((h) => {
     const stats = statsByHouse.get(h.id)!
-    const cur = stats.history.find((e) => e.monthKey === monthKey) ?? stats.history[stats.history.length - 1]
-    const isPaid = cur && cur.status === 'ontime'
-    const amount = cur && cur.amount ? cur.amount : isPaid ? h.fee : 0
+    // Only a house that already existed in the report month gets an entry.
+    // statusForMonth returns null when the house was created later (or the
+    // month precedes creation) — such houses are not-applicable, NOT paid/unpaid.
+    const entry = stats.history.find((e) => e.monthKey === monthKey)
+    const status: ReportRow['status'] = entry ? entry.status : 'upcoming'
+    const isPaid = statusForMonth(stats, monthKey) === 'ontime'
+    const amount = entry && entry.amount ? entry.amount : isPaid ? h.fee : 0
     return {
       houseNumber: h.houseNumber,
       name: h.name,
       fee: h.fee,
-      status: cur ? cur.status : 'upcoming',
-      paidDate: cur ? cur.paidDate : null,
+      status,
+      paidDate: entry ? entry.paidDate : null,
       amount,
+      applicable: !!entry,
       score: stats.reliabilityScore,
       currentStreak: stats.currentStreak,
       longestStreak: stats.longestStreak,
@@ -121,6 +130,7 @@ export function buildReportData(
   let expected = 0
   let paidCount = 0
   rows.forEach((h) => {
+    if (!h.applicable) return
     expected += Number(h.fee) || 0
     if (h.status === 'ontime') {
       paidCount++
@@ -128,7 +138,7 @@ export function buildReportData(
     }
   })
   const outstanding = expected - collected
-  const pct = rows.length ? Math.round((paidCount / rows.length) * 100) : 0
+  const pct = expected ? Math.round((collected / expected) * 100) : 0
 
   const gp = guardPayments.find((g) => g.monthKey === monthKey) || null
   const guard = {

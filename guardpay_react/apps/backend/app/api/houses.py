@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
 from ..models import HouseAlias, Household, Payment
-from ..schemas import BulkAdd, HouseCreate, HouseImport, HouseUpdate, PaymentToggle, PaymentUpdate
+from ..schemas import BulkAdd, HouseCreate, HouseIdRequest, HouseImport, HouseUpdate, PaymentToggle
 from ..services.audit import write_audit
 from ..services.backups import maybe_backup_before_change
 
@@ -57,7 +57,7 @@ async def create_house(data: HouseCreate, session: AsyncSession = Depends(get_db
     session.add(house)
     try:
         await session.commit()
-    except Exception:
+    except IntegrityError:
         await session.rollback()
         raise HTTPException(409, "House number already exists")
     await session.refresh(house)
@@ -99,7 +99,11 @@ async def bulk_add(data: BulkAdd, session: AsyncSession = Depends(get_db)):
         )
         session.add(house)
         added += 1
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(409, "Bulk add aborted — a house number already exists")
     return {"ok": True, "added": added, "errors": errors}
 
 
@@ -243,7 +247,7 @@ async def import_houses(data: HouseImport, session: AsyncSession = Depends(get_d
             # house was just created — no payment rows can exist yet, so the
             # existence check is skipped (avoids an N+1 query per month)
             y, m = int(key[:4]), int(key[5:7])
-            day = min(item.paid_day or 5, _cal.monthrange(y, m)[1])
+            day = max(1, min(item.paid_day or 5, _cal.monthrange(y, m)[1]))
             session.add(
                 Payment(
                     house_id=house.id,
@@ -260,9 +264,9 @@ async def import_houses(data: HouseImport, session: AsyncSession = Depends(get_d
 
     try:
         await session.commit()
-    except Exception:
+    except IntegrityError:
         await session.rollback()
-        raise HTTPException(400, "Import failed — transaction rolled back")
+        raise HTTPException(409, "Import aborted — a duplicate house number or alias caused a conflict")
     if added:
         await write_audit(session, "IMPORT", "houses", 0, after={"houses": added, "payments": payments_added})
     return {"ok": True, "added": added, "skipped": len(data.households) - added, "payments": payments_added, "errors": errors}
@@ -275,18 +279,31 @@ async def update_house(data: HouseUpdate, session: AsyncSession = Depends(get_db
     if not house:
         raise HTTPException(404, "House not found")
     ts = _ts()
-    fee_changed = house.fee != data.fee
+    fields = data.model_fields_set
     old_fee = house.fee
-    if house.active and not data.active:
-        house.deleted_at = ts
-    if data.active and not house.active:
-        house.deleted_at = None
-    house.name = data.name.strip()
-    house.house_number = data.house_number.strip()
-    house.fee = data.fee
-    house.notes = data.notes
-    house.avatar = data.avatar
-    house.active = data.active
+    # fee audit is driven only by the *supplied* fee, so an edit that omits the
+    # fee never logs a spurious change against a None/previous default.
+    fee_changed = "fee" in fields and old_fee != data.fee
+
+    if "active" in fields:
+        was_active = house.active
+        house.active = data.active
+        if data.active and not was_active:
+            house.deleted_at = None
+        elif not data.active and was_active:
+            house.deleted_at = ts
+    if "name" in fields:
+        house.name = data.name
+    if "house_number" in fields:
+        house.house_number = data.house_number
+    if "fee" in fields:
+        house.fee = data.fee
+    if "notes" in fields:
+        house.notes = data.notes
+    if "avatar" in fields:
+        house.avatar = data.avatar
+    if "deleted_at" in fields:
+        house.deleted_at = data.deleted_at
     house.updated_at = ts
     try:
         if fee_changed:
@@ -294,17 +311,17 @@ async def update_house(data: HouseUpdate, session: AsyncSession = Depends(get_db
 
             session.add(FeeChange(house_id=house.id, old_fee=old_fee, new_fee=data.fee, changed_at=ts, note="fee updated"))
         await session.commit()
-    except Exception:
+    except IntegrityError:
         await session.rollback()
         raise HTTPException(409, "House number already exists")
-    await write_audit(session, "UPDATE", "houses", house.id, after={"name": house.name, "house_number": house.house_number, "fee": house.fee, "active": data.active})
+    await write_audit(session, "UPDATE", "houses", house.id, after={"name": house.name, "house_number": house.house_number, "fee": house.fee, "active": house.active})
     return {"ok": True}
 
 
 @router.post("/delete")
-async def delete_house(body: dict, session: AsyncSession = Depends(get_db)):
+async def delete_house(data: HouseIdRequest, session: AsyncSession = Depends(get_db)):
     await maybe_backup_before_change("house-delete")
-    house = await session.get(Household, body.get("id"))
+    house = await session.get(Household, data.id)
     if not house:
         raise HTTPException(404, "House not found")
     ts = _ts()
@@ -317,9 +334,9 @@ async def delete_house(body: dict, session: AsyncSession = Depends(get_db)):
 
 
 @router.post("/restore")
-async def restore_house(body: dict, session: AsyncSession = Depends(get_db)):
+async def restore_house(data: HouseIdRequest, session: AsyncSession = Depends(get_db)):
     await maybe_backup_before_change("house-restore")
-    house = await session.get(Household, body.get("id"))
+    house = await session.get(Household, data.id)
     if not house:
         raise HTTPException(404, "House not found")
     house.active = True
@@ -330,24 +347,6 @@ async def restore_house(body: dict, session: AsyncSession = Depends(get_db)):
 
 
 # ---- Payments (nested under houses for convenience) ----
-
-@router.get("/{house_id}/payments")
-async def house_payments(house_id: int, session: AsyncSession = Depends(get_db)):
-    result = await session.execute(select(Payment).where(Payment.house_id == house_id))
-    return [
-        {
-            "id": p.id,
-            "house_id": p.house_id,
-            "month_key": p.month_key,
-            "paid_date": p.paid_date,
-            "amount": p.amount,
-            "note": p.note,
-            "created_at": p.created_at,
-            "updated_at": p.updated_at,
-        }
-        for p in result.scalars()
-    ]
-
 
 @router.post("/payments/toggle")
 async def toggle_payment(data: PaymentToggle, session: AsyncSession = Depends(get_db)):
@@ -410,13 +409,17 @@ async def toggle_payment(data: PaymentToggle, session: AsyncSession = Depends(ge
         await session.commit()
     except IntegrityError:
         if not created:
-            raise
+            await session.rollback()
+            # non-race integrity error (e.g. bad FK / constraint) — surface cleanly
+            raise HTTPException(409, "Payment could not be saved due to a conflict")
         # concurrent toggle raced us and created the same house+month row
         await session.rollback()
         result = await session.execute(
             select(Payment).where(Payment.house_id == data.house_id, Payment.month_key == data.month_key)
         )
-        payment = result.scalar_one()
+        payment = result.scalar_one_or_none()
+        if payment is None:
+            raise HTTPException(409, "Payment could not be saved due to a conflict")
         await session.refresh(payment)
         return {"ok": True, "paid": True, "id": payment.id}
     await session.refresh(payment)
@@ -429,20 +432,3 @@ async def toggle_payment(data: PaymentToggle, session: AsyncSession = Depends(ge
         after={"month": data.month_key, "amount": payment.amount},
     )
     return {"ok": True, "paid": True, "id": payment.id}
-
-
-@router.post("/payments/update")
-async def update_payment(data: PaymentUpdate, session: AsyncSession = Depends(get_db)):
-    await maybe_backup_before_change("payment-update")
-    payment = await session.get(Payment, data.id)
-    if not payment:
-        raise HTTPException(404, "Payment not found")
-    if data.paid_date is not None:
-        payment.paid_date = data.paid_date
-    if data.amount is not None:
-        payment.amount = data.amount
-    if data.note is not None:
-        payment.note = data.note
-    payment.updated_at = _ts()
-    await session.commit()
-    return {"ok": True}
