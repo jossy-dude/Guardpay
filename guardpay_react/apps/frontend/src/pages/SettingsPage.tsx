@@ -17,6 +17,7 @@ import {
 import { useDataStore } from '@/features/payments/dataStore'
 import { useAuthStore } from '@/features/auth/authStore'
 import { api } from '@/lib/api'
+import { useRouter } from '@/lib/router'
 import { Layout, Section, SectionHead } from '@/components/layout/Layout'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -68,7 +69,14 @@ function MiniDashboardPreview({ colors, sprite }: { colors: ThemeDefinition['col
 }
 
 export function SettingsPage() {
+  const { path } = useRouter()
   const [tab, setTab] = useState<TabId>('general')
+
+  useEffect(() => {
+    const m = path.match(/[?&]tab=(\w+)/)
+    const id = m?.[1]
+    if (id && TABS.some((t) => t.id === id)) setTab(id as TabId)
+  }, [path])
 
   return (
     <Layout>
