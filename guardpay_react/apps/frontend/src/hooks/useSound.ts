@@ -3,8 +3,8 @@
 import { useCallback } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { resolveTheme } from '@/features/theming/themes'
-import type { SoundPreset } from '@/lib/types'
+import { resolveTheme, THEMES } from '@/features/theming/themes'
+import type { SoundPreset, ThemeId } from '@/lib/types'
 
 /**
  * Hybrid sound engine.
@@ -242,14 +242,20 @@ export function useSound() {
     playInternal(name)
   }, [])
 
-  return { play, preview }
+  /** Theme-specific preview — plays a semantic sound using a target theme's mapping, bypassing mute. */
+  const previewTheme = useCallback((name: SoundPreset | 'toggle' | 'paid' | 'unpay' | 'error' | 'hover', themeId: ThemeId) => {
+    playInternal(name, themeId)
+  }, [])
+
+  return { play, preview, previewTheme }
 }
 
-function playInternal(name: SoundPreset | 'toggle' | 'paid' | 'unpay' | 'error' | 'hover') {
+function playInternal(name: SoundPreset | 'toggle' | 'paid' | 'unpay' | 'error' | 'hover', themeId?: string) {
   try {
     const ctx = getCtx()
     if (!ctx) return
-    const theme = resolveTheme()
+    const theme = themeId ? THEMES[themeId as ThemeId] : resolveTheme()
+    if (!theme) return
     const semantic = name as 'toggle' | 'paid' | 'unpay' | 'error' | 'hover'
     const resolved = semantic in theme.sound ? theme.sound[semantic] : (name as SoundPreset)
     playPreset(ctx, resolved, flavorFor(theme.id))

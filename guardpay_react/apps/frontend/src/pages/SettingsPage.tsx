@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bug,
   Brush,
@@ -270,6 +270,26 @@ function AppearanceTab() {
   const resolved = resolveTheme()
   const overridden = !!fontOverride || !!densityOverride || radiusOverride !== null
   const [hoverId, setHoverId] = useState<ThemeId | null>(null)
+  const { previewTheme } = useSound()
+  const hoverTimers = useRef<number[]>([])
+  const hoverIdRef = useRef<string | null>(null)
+
+  const stopHover = () => {
+    hoverTimers.current.forEach((t) => window.clearTimeout(t))
+    hoverTimers.current = []
+  }
+
+  const startHover = (themeId: ThemeId) => {
+    stopHover()
+    hoverIdRef.current = themeId
+    previewTheme('hover', themeId)
+    hoverTimers.current = [
+      window.setTimeout(() => hoverIdRef.current === themeId && previewTheme('toggle', themeId), 350),
+      window.setTimeout(() => hoverIdRef.current === themeId && previewTheme('paid', themeId), 700),
+    ]
+  }
+
+  useEffect(() => stopHover, [])
 
   const densities = ['compact', 'comfortable', 'spacious'] as const
   const radii = [0, 6, 12, 16] as const
@@ -295,8 +315,15 @@ function AppearanceTab() {
               <button
                 key={t.id}
                 onClick={() => setTheme(t.id)}
-                onMouseEnter={() => setHoverId(t.id)}
-                onMouseLeave={() => setHoverId(null)}
+                onMouseEnter={() => {
+                  setHoverId(t.id)
+                  startHover(t.id)
+                }}
+                onMouseLeave={() => {
+                  setHoverId(null)
+                  stopHover()
+                  hoverIdRef.current = null
+                }}
                 className={cn(
                   'group relative overflow-hidden rounded-[var(--radius)] border p-3 text-left transition-all',
                   active ? 'border-[var(--primary)] ring-2 ring-[var(--primary)]/40' : 'border-[var(--border)] hover:border-[var(--primary)]/50',
