@@ -121,6 +121,9 @@ code, pre, .font-mono {
 .heatmap-scroll { scrollbar-width: none; }
 .heatmap-scroll::-webkit-scrollbar { display: none; }
 
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* ---------- Textures ---------- */
 [data-texture="paper"] body {
   background-image:

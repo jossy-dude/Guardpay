@@ -25,7 +25,7 @@ import { useSaveSettings } from '@/lib/hooks'
 import { useSoundStore, useSound, SOUND_CREDITS } from '@/hooks/useSound'
 import { cn } from '@/lib/cn'
 import { toastError, toastSuccess } from '@/components/toast/store'
-import type { MascotSpriteKey, Settings, ThemeId } from '@/lib/types'
+import type { MascotSpriteKey, Settings, ShapeId, ThemeId } from '@/lib/types'
 import { THEME_LIST, useThemeStore, FONTS, resolveTheme, type ThemeDefinition } from '@/features/theming/themes'
 import { AnimatedMascot } from '@/components/shared/AnimatedMascot'
 import { ResidentAvatar } from '@/components/shared/ResidentAvatar'
@@ -272,11 +272,11 @@ function AppearanceTab() {
   const setFontOverride = useThemeStore((s) => s.setFontOverride)
   const densityOverride = useThemeStore((s) => s.densityOverride)
   const setDensityOverride = useThemeStore((s) => s.setDensityOverride)
-  const radiusOverride = useThemeStore((s) => s.radiusOverride)
-  const setRadiusOverride = useThemeStore((s) => s.setRadiusOverride)
+  const shapeOverride = useThemeStore((s) => s.shapeOverride)
+  const setShapeOverride = useThemeStore((s) => s.setShapeOverride)
   const resetOverrides = useThemeStore((s) => s.resetOverrides)
   const resolved = resolveTheme()
-  const overridden = !!fontOverride || !!densityOverride || radiusOverride !== null
+  const overridden = !!fontOverride || !!densityOverride || shapeOverride !== null
   const [hoverId, setHoverId] = useState<ThemeId | null>(null)
   const { previewTheme } = useSound()
   const hoverTimers = useRef<number[]>([])
@@ -300,7 +300,15 @@ function AppearanceTab() {
   useEffect(() => stopHover, [])
 
   const densities = ['compact', 'comfortable', 'spacious'] as const
-  const radii = [0, 6, 12, 16] as const
+
+  const SHAPES: { id: ShapeId; label: string; clip?: string; radius?: number }[] = [
+    { id: 'rectangle', label: 'Rectangle', radius: 0 },
+    { id: 'square', label: 'Square', radius: 8 },
+    { id: 'circle', label: 'Circle', radius: 9999 },
+    { id: 'trapezoid', label: 'Trapezoid', clip: 'polygon(6% 0, 94% 0, 100% 100%, 0 100%)' },
+    { id: 'parallelogram', label: 'Parallelogram', clip: 'polygon(8% 0, 100% 0, 92% 100%, 0 100%)' },
+    { id: 'irregular', label: 'Irregular', clip: 'polygon(10% 0, 78% 4%, 100% 28%, 96% 82%, 60% 100%, 8% 92%, 0 55%)' },
+  ]
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -381,65 +389,57 @@ function AppearanceTab() {
       <div className="space-y-4">
         <Section>
           <SectionHead title="Typography" kicker="Typeface pairing" />
-          <div className="flex flex-wrap gap-2">
+          <SnapStrip>
             {Object.entries(FONTS).map(([key, pair]) => (
-              <button
-                key={key}
-                onClick={() => setFontOverride(fontOverride === key ? null : key)}
-                className={cn(
-                  'rounded-lg border px-2.5 py-1.5 text-xs transition',
-                  fontOverride === key
-                    ? 'border-transparent bg-[var(--primary)] text-[var(--primary-fg)]'
-                    : 'border-[var(--border)] hover:border-[var(--primary)]/50',
-                )}
-              >
-                {pair.label}
-              </button>
+              <SelectorCard key={key} selected={fontOverride === key} onClick={() => setFontOverride(fontOverride === key ? null : key)}>
+                <div className="text-2xl font-bold leading-none" style={{ fontFamily: pair.display }}>Ag</div>
+                <div className="mt-1.5 truncate text-[11px] font-medium" style={{ fontFamily: 'var(--font-body)' }}>{pair.label}</div>
+                <div className="truncate text-[10px] text-[var(--muted)]" style={{ fontFamily: 'var(--font-mono)' }}>AaBb 123</div>
+              </SelectorCard>
             ))}
-          </div>
+          </SnapStrip>
         </Section>
 
         <Section>
           <SectionHead title="Density" kicker="Spacing rhythm" />
-          <div className="flex flex-wrap gap-2">
+          <SnapStrip>
             {densities.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDensityOverride(densityOverride === d ? null : d)}
-                className={cn(
-                  'rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition',
-                  densityOverride === d
-                    ? 'border-transparent bg-[var(--primary)] text-[var(--primary-fg)]'
-                    : 'border-[var(--border)] hover:border-[var(--primary)]/50',
-                )}
-              >
-                {d}
-              </button>
+              <SelectorCard key={d} selected={densityOverride === d} onClick={() => setDensityOverride(densityOverride === d ? null : d)}>
+                <div
+                  className="flex flex-col rounded-sm border border-[var(--border)] p-1"
+                  style={{ gap: d === 'compact' ? 3 : d === 'comfortable' ? 7 : 12 }}
+                >
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-1 rounded-sm bg-[var(--primary)]/60" style={{ padding: `0 ${d === 'compact' ? 4 : d === 'comfortable' ? 9 : 14}px` }} />
+                  ))}
+                </div>
+                <div className="mt-1.5 text-center text-[11px] font-medium capitalize">{d}</div>
+              </SelectorCard>
             ))}
-          </div>
+          </SnapStrip>
         </Section>
 
         <Section>
-          <SectionHead title="Corner radius" kicker="How soft the edges" />
-          <div className="flex flex-wrap gap-2">
-            {radii.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRadiusOverride(radiusOverride === r ? null : r)}
-                className={cn(
-                  'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
-                  radiusOverride === r
-                    ? 'border-transparent bg-[var(--primary)] text-[var(--primary-fg)]'
-                    : 'border-[var(--border)] hover:border-[var(--primary)]/50',
-                )}
-              >
-                {r}px
-              </button>
+          <SectionHead title="Card shape" kicker="How the edges meet" />
+          <SnapStrip>
+            {SHAPES.map((s) => (
+              <SelectorCard key={s.id} selected={shapeOverride === s.id} onClick={() => setShapeOverride(shapeOverride === s.id ? null : s.id)}>
+                <div className="flex h-10 w-full items-center justify-center">
+                  <span
+                    className="block h-8 w-12"
+                    style={{
+                      background: 'color-mix(in srgb, var(--primary) 70%, var(--accent) 30%)',
+                      borderRadius: s.radius ?? 0,
+                      clipPath: s.clip,
+                    }}
+                  />
+                </div>
+                <div className="mt-1.5 text-center text-[11px] font-medium">{s.label}</div>
+              </SelectorCard>
             ))}
-          </div>
+          </SnapStrip>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            Active: <span className="font-medium text-[var(--fg)]">{resolved.label}</span> · radius{' '}
-            {resolved.radius}px · {resolved.density}.
+            Shapes apply to big surfaces (cards, dialogs). Buttons and inputs keep the theme radius.
           </p>
         </Section>
 
@@ -929,6 +929,29 @@ function DeveloperTab() {
 }
 
 /* ---------------- Small pieces ---------------- */
+
+function SnapStrip({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="no-scrollbar -mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth px-1 pb-1">
+      {children}
+    </div>
+  )
+}
+
+function SelectorCard({ children, selected, onClick }: { children: React.ReactNode; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-24 shrink-0 snap-center rounded-lg border p-2 text-left transition',
+        selected ? 'border-[var(--primary)] ring-2 ring-[var(--primary)]/30' : 'border-[var(--border)] hover:border-[var(--primary)]/50',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
