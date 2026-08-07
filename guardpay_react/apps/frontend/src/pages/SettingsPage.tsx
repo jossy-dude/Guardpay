@@ -76,6 +76,7 @@ export function SettingsPage() {
     const m = path.match(/[?&]tab=(\w+)/)
     const id = m?.[1]
     if (id && TABS.some((t) => t.id === id)) setTab(id as TabId)
+    else setTab('general')
   }, [path])
 
   return (

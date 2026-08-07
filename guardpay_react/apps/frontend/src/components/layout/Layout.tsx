@@ -43,7 +43,7 @@ export function Layout({ children }: LayoutProps) {
 export function Section({
   children,
   className,
-  'data-surface': dataSurface = '',
+  'data-surface': dataSurface = 'keep-rect',
 }: {
   children: React.ReactNode
   className?: string
