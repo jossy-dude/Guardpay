@@ -66,6 +66,7 @@ class HouseUpdate(BaseModel):
     avatar: str | None = None
     fee_changed: bool | None = None
     deleted_at: str | None = None
+    opening_balance: int | None = Field(default=None)
 
     @field_validator("name", "house_number")
     @classmethod
@@ -209,13 +210,21 @@ class BulkAdd(BaseModel):
 
 
 # ---- Excel import ----
+class HouseImportPayment(BaseModel):
+    month: str  # canonical YYYY-MM or human label
+    amount: int | None = None
+    note: str = ""
+
+
 class HouseImportItem(BaseModel):
     house_number: str = Field(min_length=1, max_length=60)
     name: str = Field(min_length=1, max_length=300)
     fee: int | None = None
     aliases: list[str] = Field(default_factory=list)
-    months: list[str] = Field(default_factory=list)  # canonical YYYY-MM or human label
+    months: list[str] = Field(default_factory=list)  # canonical YYYY-MM or human label (back-compat)
+    payments: list[HouseImportPayment] = Field(default_factory=list)
     paid_day: int | None = None
+    opening_balance: int = 0
 
 
 class HouseImport(BaseModel):

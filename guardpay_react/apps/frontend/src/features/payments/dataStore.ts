@@ -89,6 +89,7 @@ export const useDataStore = create<DataState>()((set) => ({
         updatedAt: h.updated_at,
         deletedAt: h.deleted_at,
         avatar: h.avatar ?? null,
+        openingBalance: h.opening_balance ?? 0,
       }))
       const byId = new Map(houses.map((h) => [h.id, h]))
       const payments: Payment[] = d.payments.map((p) => ({

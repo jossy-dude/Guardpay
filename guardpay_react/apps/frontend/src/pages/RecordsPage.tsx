@@ -30,6 +30,7 @@ import {
   Loader2,
   MoreHorizontal,
   Pencil,
+  Phone,
   Plus,
   Search,
   SlidersHorizontal,
@@ -52,7 +53,7 @@ import { Dialog } from '@/components/shared/overlay/Dialog'
 import { Popover, PopoverTrigger, PopoverContent, usePopover } from '@/components/shared/overlay/Popover'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useTogglePayment, useHouseMutation, useDeleteHouse, useReminderMutation } from '@/lib/hooks'
+import { useTogglePayment, useHouseMutation, useDeleteHouse, useReminderMutation, useAddAlias, useDeleteAlias } from '@/lib/hooks'
 import { useSound } from '@/hooks/useSound'
 import { toastSuccess, toastError } from '@/components/toast/store'
 import { addMonths, calendarMonthLabel, calendarMonthShort, currentMonthKey, formatMoney, todayIso } from '@/lib/utils'
@@ -175,6 +176,7 @@ function usePersistedColumns(): [Record<ColumnKey, boolean>, (k: ColumnKey) => v
 export function RecordsPage() {
   const houses = useDataStore((s) => s.houses)
   const payments = useDataStore((s) => s.payments)
+  const aliases = useDataStore((s) => s.aliases)
   const settings = useDataStore((s) => s.settings)
   const toggle = useTogglePayment()
   const reminder = useReminderMutation()
@@ -184,6 +186,7 @@ export function RecordsPage() {
   const [visibleColumns, toggleColumn] = usePersistedColumns()
   const [month, setMonth] = useState(currentMonthKey())
   const [query, setQuery] = useState('')
+  const [aliasQuery, setAliasQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<MonthStatus | null>(null)
   const [sort, setSort] = useState<SortKey>('houseNumber')
   const [asc, setAsc] = useState(true)
@@ -238,6 +241,26 @@ export function RecordsPage() {
     return list
   }, [active, query, sort, asc, stats, month, statusFilter])
 
+  /** Alias/name/phone lookup: find which household a transfer sender links to. */
+  const aliasMatches = useMemo(() => {
+    const raw = aliasQuery.trim().toLowerCase()
+    if (!raw) return []
+    const byHouse = new Map<number, string[]>()
+    for (const a of aliases) {
+      const list = byHouse.get(a.houseId) ?? []
+      list.push(a.alias)
+      byHouse.set(a.houseId, list)
+    }
+    const out: { house: Household; matched: string[] }[] = []
+    for (const h of active) {
+      const hits = (byHouse.get(h.id) ?? []).filter((a) => a.toLowerCase().includes(raw))
+      if (hits.length || h.name.toLowerCase().includes(raw) || h.houseNumber.toLowerCase().includes(raw)) {
+        out.push({ house: h, matched: hits })
+      }
+    }
+    return out.slice(0, 6)
+  }, [aliasQuery, active, aliases])
+
   const onSort = (key: SortKey) => {
     if (sort === key) setAsc((v) => !v)
     else {
@@ -248,7 +271,7 @@ export function RecordsPage() {
 
   const paymentFor = (house: Household) => payments.find((p) => p.houseId === house.id && p.monthKey === month)
 
-  const onToggle = (house: Household, currentlyPaid: boolean) => {
+  const onToggle = (house: Household, currentlyPaid: boolean, note?: string) => {
     setPendingToggles((prev) => new Set(prev).add(house.id))
     toggle.mutate(
       {
@@ -257,6 +280,7 @@ export function RecordsPage() {
         paid: !currentlyPaid,
         date: todayIso(),
         amount: house.fee,
+        note: note ?? '',
       },
       {
         onSettled: () => {
@@ -334,6 +358,49 @@ export function RecordsPage() {
             placeholder="Search"
             className="h-8 w-full pl-8"
           />
+        </div>
+        <div className="relative min-w-[180px] max-w-[240px]">
+          <Phone size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+          <Input
+            value={aliasQuery}
+            onChange={(e) => setAliasQuery(e.target.value)}
+            placeholder="Who paid? name / phone"
+            className="h-8 w-full pl-8"
+          />
+          {aliasMatches.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--card)] shadow-lg">
+              {aliasMatches.map(({ house, matched }) => (
+                <button
+                  key={house.id}
+                  type="button"
+                  onClick={() => {
+                    onToggle(house, paid(house), matched.length ? `paid by ${matched[0]}` : undefined)
+                    setAliasQuery('')
+                  }}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_6%,transparent)]"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-[var(--fg)]">
+                      {house.houseNumber} · {house.name}
+                    </span>
+                    {matched.length > 0 && (
+                      <span className="block truncate text-[11px] text-[var(--muted)]">{matched.join(', ')}</span>
+                    )}
+                  </span>
+                  <span
+                    className={cn(
+                      'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                      paid(house)
+                        ? 'text-[var(--muted)]'
+                        : 'text-[var(--primary)] [background:color-mix(in_srgb,var(--primary)_12%,transparent)]',
+                    )}
+                  >
+                    {paid(house) ? 'paid' : 'tick paid'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <FilterMenu value={statusFilter} onChange={setStatusFilter} />
         <SortMenu sort={sort} asc={asc} onSort={onSort} />
@@ -778,7 +845,23 @@ function HouseIdentity({
         <span className="flex min-w-0 items-center gap-2.5">
           <ResidentAvatar house={house} size={26} onClick={() => useAvatarPicker.getState().open(house)} />
           <span className="min-w-0">
-            <span className="block font-mono text-xs text-[var(--primary)]">{house.houseNumber}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="block font-mono text-xs text-[var(--primary)]">{house.houseNumber}</span>
+              {house.openingBalance !== 0 && (
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 py-px font-mono text-[10px] font-semibold',
+                    house.openingBalance > 0
+                      ? 'text-[var(--success)] [background:color-mix(in_srgb,var(--success)_12%,transparent)]'
+                      : 'text-[var(--danger)] [background:color-mix(in_srgb,var(--danger)_12%,transparent)]',
+                  )}
+                  title={`Carryover balance: ${formatMoney(house.openingBalance)}`}
+                >
+                  {house.openingBalance > 0 ? '+' : '−'}
+                  {Math.abs(house.openingBalance).toLocaleString()}
+                </span>
+              )}
+            </span>
             <span className="block truncate text-sm font-medium text-[var(--fg)]" title={house.name}>
               {house.name}
             </span>
@@ -1446,7 +1529,23 @@ function GalleryCard({
         </div>
         {payment?.note && <p className="mt-2 truncate text-xs text-[var(--muted)]">{payment.note}</p>}
         <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs">
-          <span className="font-mono text-[var(--muted)]">{formatMoney(house.fee)}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="font-mono text-[var(--muted)]">{formatMoney(house.fee)}</span>
+            {house.openingBalance !== 0 && (
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-px font-mono text-[10px] font-semibold',
+                  house.openingBalance > 0
+                    ? 'text-[var(--success)] [background:color-mix(in_srgb,var(--success)_12%,transparent)]'
+                    : 'text-[var(--danger)] [background:color-mix(in_srgb,var(--danger)_12%,transparent)]',
+                )}
+                title={`Carryover balance: ${formatMoney(house.openingBalance)}`}
+              >
+                {house.openingBalance > 0 ? '+' : '−'}
+                {Math.abs(house.openingBalance).toLocaleString()}
+              </span>
+            )}
+          </span>
           {stats && (
             <span className="flex items-center gap-1.5">
               <ScoreDots score={stats.reliabilityScore} size={12} />
@@ -1608,12 +1707,18 @@ function HouseFormDialog({
   onClose: () => void
 }) {
   const mutation = useHouseMutation()
+  const addAlias = useAddAlias()
+  const deleteAlias = useDeleteAlias()
+  const allAliases = useDataStore((s) => s.aliases)
   const { play } = useSound()
   const [name, setName] = useState('')
   const [houseNumber, setHouseNumber] = useState('')
   const [fee, setFee] = useState('')
   const [notes, setNotes] = useState('')
   const [active, setActive] = useState(true)
+  const [openingBalance, setOpeningBalance] = useState('')
+  const [aliasDraft, setAliasDraft] = useState('')
+  const [savingAlias, setSavingAlias] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -1622,8 +1727,28 @@ function HouseFormDialog({
       setFee(house ? String(house.fee) : String(defaultFee || ''))
       setNotes(house?.notes ?? '')
       setActive(house?.active ?? true)
+      setOpeningBalance(house ? String(house.openingBalance ?? 0) : '')
+      setAliasDraft('')
     }
   }, [open, house, defaultFee])
+
+  const houseAliases = house ? allAliases.filter((a) => a.houseId === house.id) : []
+
+  const addAliasSubmit = () => {
+    const value = aliasDraft.trim()
+    if (!value || !house || addAlias.isPending || savingAlias) return
+    setSavingAlias(true)
+    addAlias.mutate(
+      { house_id: house.id, alias: value },
+      {
+        onSuccess: () => {
+          setAliasDraft('')
+          play('paid')
+        },
+        onSettled: () => setSavingAlias(false),
+      },
+    )
+  }
 
   const submit = () => {
     if (!name.trim() || !houseNumber.trim()) {
@@ -1639,6 +1764,7 @@ function HouseFormDialog({
     if (house) {
       payload.id = house.id
       payload.active = active
+      payload.opening_balance = Number(openingBalance) || 0
     }
     mutation.mutate(payload, {
       onSuccess: () => {
@@ -1689,6 +1815,55 @@ function HouseFormDialog({
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
           </div>
         </div>
+        {house && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[var(--muted)]">
+              Carryover balance <span className="text-[var(--muted)]">(+ surplus · − arrears)</span>
+            </label>
+            <Input
+              type="number"
+              value={openingBalance}
+              onChange={(e) => setOpeningBalance(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+        )}
+        {house && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[var(--muted)]">Aliases — other names/phones they pay from</label>
+            {houseAliases.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {houseAliases.map((a) => (
+                  <span
+                    key={a.id}
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] px-2 py-0.5 font-mono text-[11px] text-[var(--muted)]"
+                  >
+                    {a.alias}
+                    <button
+                      type="button"
+                      aria-label={`Remove alias ${a.alias}`}
+                      onClick={() => deleteAlias.mutate({ id: a.id })}
+                      className="rounded-full p-0.5 text-[var(--muted)] transition hover:text-[var(--danger)]"
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={aliasDraft}
+                onChange={(e) => setAliasDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addAliasSubmit()}
+                placeholder="e.g. Biruk · 0911 000 000"
+              />
+              <Button size="sm" variant="outline" onClick={addAliasSubmit} disabled={!aliasDraft.trim() || addAlias.isPending || savingAlias}>
+                Add
+              </Button>
+            </div>
+          </div>
+        )}
         {house && (
           <label className="flex items-center gap-2 text-sm text-[var(--fg)]">
             <input

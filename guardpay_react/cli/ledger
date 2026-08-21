@@ -1,0 +1,63 @@
+#!/bin/bash
+# Ledger launcher — single command to build and run the new GuardPay (v2) app
+# in production mode. The FastAPI backend serves the built frontend at 8420.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+BACKEND_DIR="$ROOT_DIR/apps/backend"
+FRONTEND_DIR="$ROOT_DIR/apps/frontend"
+# Data dir is derived by the backend itself (apps/backend/app/core/config.py →
+# BASE_DIR/data = guardpay_react/apps/data). Kept here only so the mkdir below
+# guarantees the directory exists before uvicorn starts.
+DATA_DIR="$ROOT_DIR/apps/data"
+
+PORT=8420
+NO_BROWSER=false
+HOST="0.0.0.0"
+
+usage() {
+  cat <<EOF
+Usage: ledger [--port PORT] [--host HOST] [--no-browser] [--build/--no-build]
+
+Starts the Ledger (GuardPay v2) app in production mode:
+  - builds the frontend if needed
+  - runs the FastAPI backend, which serves the built frontend
+EOF
+  exit 0
+}
+
+# --- parse args ---
+BUILD_NEEDED=true
+ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port) PORT="$2"; shift 2 ;;
+    --port=*) PORT="${1#*=}"; shift 1 ;;
+    --host) HOST="$2"; shift 2 ;;
+    --host=*) HOST="${1#*=}"; shift 1 ;;
+    --no-browser) NO_BROWSER=true; shift 1 ;;
+    --build) BUILD_NEEDED=true; shift 1 ;;
+    --no-build) BUILD_NEEDED=false; shift 1 ;;
+    -h|--help) usage ;;
+    *) ARGS+=("$1"); shift 1 ;;
+  esac
+done
+
+mkdir -p "$DATA_DIR"
+
+# --- stop any running instance ---
+echo "Stopping any running Ledger server..."
+pkill -f "uvicorn app.main:app" 2>/dev/null || true
+sleep 1
+
+# --- build frontend (production single-command) ---
+if [[ "$BUILD_NEEDED" == true ]]; then
+  echo "Building frontend..."
+  (cd "$FRONTEND_DIR" && pnpm install >/dev/null 2>&1 || true && pnpm build)
+fi
+
+# --- start backend (serves built frontend) ---
+echo "Starting Ledger on http://${HOST}:${PORT} ..."
+cd "$BACKEND_DIR"
+exec .venv/bin/uvicorn app.main:app --host "$HOST" --port "$PORT" "${ARGS[@]}"

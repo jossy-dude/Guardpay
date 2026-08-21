@@ -54,6 +54,7 @@ class Household(Base):
     updated_at: Mapped[str] = mapped_column(String(40))
     deleted_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
     avatar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    opening_balance: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     payments: Mapped[list["Payment"]] = relationship(back_populates="house", cascade="all, delete-orphan")
 

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useHouseMutation, useDeleteHouse, useBackupList, useCreateBackup, useRestoreBackup, downloadBackup, useBulkHouseMutation, useHouseImportMutation } from '@/lib/hooks'
 import { cn } from '@/lib/cn'
 import { toastSuccess, toastError } from '@/components/toast/store'
-import { currentMonthKey, downloadFile } from '@/lib/utils'
+import { currentMonthKey, downloadFile, lastMonthsLabels, parseMonthLabel } from '@/lib/utils'
 import type { Household } from '@/lib/types'
 
 type SortKey = 'house_number' | 'name' | 'fee' | 'active' | 'score'
@@ -400,13 +400,16 @@ function SmartImportForm({ defaultFee, calendarMode }: { defaultFee: number; cal
       const ExcelJS = (await import('exceljs')).default
       const wb = new ExcelJS.Workbook()
       const ws = wb.addWorksheet('Households')
-      const headers = ['House #', 'Name', 'Fee', 'Aliases', 'Months paid', 'Paid day']
+      const months = lastMonthsLabels(9)
+      const headers = ['House #', 'Name', 'Fee', 'Aliases', 'Starting balance', ...months]
       const headerRow = ws.addRow(headers)
       headerRow.eachCell((cell) => {
         cell.font = { bold: true }
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8E8E8' } }
       })
-      ws.addRow(['131', 'Lensa Bekele', 4000, 'lensa, lensa b', 'March 2025, April 2025', 5])
+      ws.addRow(['131', 'Lensa Bekele', 4000, 'lensa, lensa b', 0, ...months.map((_, i) => (i < 3 ? 4000 : i === 3 ? 5000 : ''))])
+      ws.addRow(['132', 'Dawit Taye', 4000, '', -1200, ...months.map((_, i) => (i < 2 ? 4000 : ''))])
+      ws.addRow(['133', 'Hana Elias', 4000, 'hana g, 0911 000 000', 500, ...months.map((_, i) => (i === 4 ? 4000 : ''))])
       ws.columns.forEach((c) => {
         c.width = 22
       })
@@ -433,15 +436,21 @@ function SmartImportForm({ defaultFee, calendarMode }: { defaultFee: number; cal
     }
     const headerRow = rows[1] as unknown[]
     const colIndex: Record<string, number> = {}
+    const monthCols: { i: number; label: string }[] = []
+    const FIXED = new Set(['house', 'name', 'fee', 'alias', 'balance'])
     headerRow.forEach((cell, i) => {
       if (cell) {
-        const name = String(cell).trim().toLowerCase()
-        if (name.includes('house') || name === '#') colIndex.house = i
-        if (name === 'name' || name.includes('resident')) colIndex.name = i
-        if (name === 'fee' || name.includes('amount')) colIndex.fee = i
-        if (name.includes('alias')) colIndex.aliases = i
-        if (name.includes('month')) colIndex.months = i
-        if (name.includes('day') || name.includes('due')) colIndex.day = i
+        const cellName = String(cell).trim()
+        const lower = cellName.toLowerCase()
+        if (lower.includes('house') || lower === '#') colIndex.house = i
+        if (lower === 'name' || lower.includes('resident')) colIndex.name = i
+        if (lower === 'fee' || lower.includes('amount')) colIndex.fee = i
+        if (lower.includes('alias')) colIndex.aliases = i
+        if (lower.includes('balance')) colIndex.balance = i
+        const head = lower.split(' ')[0] ?? ''
+        if (!FIXED.has(head) && parseMonthLabel(cellName) !== null) {
+          monthCols.push({ i, label: cellName })
+        }
       }
     })
     if (colIndex.house === undefined || colIndex.name === undefined) {
@@ -454,7 +463,9 @@ function SmartImportForm({ defaultFee, calendarMode }: { defaultFee: number; cal
       fee?: number | null
       aliases?: string[]
       months?: string[]
+      payments?: { month: string; amount?: number | null; note?: string }[]
       paid_day?: number | null
+      opening_balance?: number
     }[] = []
     for (let r = 2; r < rows.length; r++) {
       const row = rows[r] as unknown[]
@@ -467,12 +478,16 @@ function SmartImportForm({ defaultFee, calendarMode }: { defaultFee: number; cal
       const aliases = colIndex.aliases !== undefined
         ? String(row[colIndex.aliases] ?? '').split(',').map((s) => s.trim()).filter(Boolean)
         : []
-      const months = colIndex.months !== undefined
-        ? String(row[colIndex.months] ?? '').split(',').map((s) => s.trim()).filter(Boolean)
-        : []
-      const dayRaw = colIndex.day !== undefined ? Number(row[colIndex.day]) : NaN
-      const paid_day = Number.isFinite(dayRaw) && dayRaw >= 1 ? Math.round(dayRaw) : null
-      households.push({ house_number, name, fee, aliases, months, paid_day })
+      const balanceRaw = colIndex.balance !== undefined ? Number(row[colIndex.balance]) : NaN
+      const opening_balance = Number.isFinite(balanceRaw) && balanceRaw !== 0 ? balanceRaw : 0
+      const payments: { month: string; amount?: number | null; note?: string }[] = []
+      for (const mc of monthCols) {
+        const raw = row[mc.i]
+        if (raw === undefined || raw === null || String(raw).trim() === '') continue
+        const amount = Number(raw)
+        payments.push({ month: mc.label, amount: Number.isFinite(amount) ? Math.round(amount) : null })
+      }
+      households.push({ house_number, name, fee, aliases, payments, opening_balance })
     }
     if (!households.length) {
       setErrors(['No data rows found.'])
@@ -501,8 +516,9 @@ function SmartImportForm({ defaultFee, calendarMode }: { defaultFee: number; cal
         </Button>
       </div>
       <p className="mb-3 text-xs text-[var(--muted)]">
-        Download the template, fill in one household per row, then import. Optionally add a resident&apos;s <b>Aliases</b>, the
-        months they already <b>paid</b> (e.g. March 2025, April 2025), and their usual <b>Day due</b>. Fee is optional — blank rows use the default fee.
+        Download the template, fill one household per row. Set a resident&apos;s <b>Aliases</b> (names/phones they pay from) and a
+        <b>Starting balance</b> (surplus +, arrears −). Then enter the <b>amount paid</b> in each month column — leave a month
+        empty if unpaid.
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <Button size="sm" variant="secondary" onClick={downloadTemplate}>

@@ -40,6 +40,7 @@ async def get_state(session: AsyncSession = Depends(get_db)):
                 "updated_at": h.updated_at,
                 "deleted_at": h.deleted_at,
                 "avatar": h.avatar,
+                "opening_balance": h.opening_balance,
             }
             for h in houses
         ],

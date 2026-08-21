@@ -34,6 +34,7 @@ async def list_houses(session: AsyncSession = Depends(get_db)):
             "updated_at": h.updated_at,
             "deleted_at": h.deleted_at,
             "avatar": h.avatar,
+            "opening_balance": h.opening_balance,
         }
         for h in result.scalars()
     ]
@@ -220,6 +221,7 @@ async def import_houses(data: HouseImport, session: AsyncSession = Depends(get_d
             created_month=f"{today.year}-{today.month:02d}",
             created_at=ts,
             updated_at=ts,
+            opening_balance=item.opening_balance or 0,
         )
         session.add(house)
         await session.flush()
@@ -235,7 +237,12 @@ async def import_houses(data: HouseImport, session: AsyncSession = Depends(get_d
             session.add(HouseAlias(house_id=house.id, alias=a, created_at=ts))
 
         seen_months = set()
-        for label in item.months:
+        month_items: list[tuple[str, int | None, str]] = [
+            (label, None, "") for label in item.months
+        ]
+        for p in item.payments:
+            month_items.append((p.month, p.amount, (p.note or "").strip()))
+        for label, amount, note in month_items:
             key = _parse_month_label(label, data.calendar_mode)
             if not key:
                 errors.append(f"Bad month for {number}: {label}")
@@ -253,8 +260,8 @@ async def import_houses(data: HouseImport, session: AsyncSession = Depends(get_d
                     house_id=house.id,
                     month_key=key,
                     paid_date=f"{key}-{day:02d}",
-                    amount=fee,
-                    note="imported",
+                    amount=amount if amount is not None else fee,
+                    note=note if note else "imported",
                     source="import",
                     created_at=ts,
                     updated_at=ts,
@@ -304,6 +311,8 @@ async def update_house(data: HouseUpdate, session: AsyncSession = Depends(get_db
         house.avatar = data.avatar
     if "deleted_at" in fields:
         house.deleted_at = data.deleted_at
+    if "opening_balance" in fields:
+        house.opening_balance = data.opening_balance
     house.updated_at = ts
     try:
         if fee_changed:

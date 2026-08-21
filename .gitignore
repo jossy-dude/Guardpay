@@ -4,6 +4,7 @@ guardpay.db-journal
 guardpay.db-wal
 guardpay.db-shm
 guardpay/backups/
+guardpay_react/apps/data/backups/
 
 # Logs
 *.log
@@ -14,6 +15,13 @@ __pycache__/
 
 # Excel (generated)
 GuardPay.xlsx
+
+# Node / React frontend
+node_modules/
+dist/
+build/
+.env
+.env.*
 
 # OS
 .DS_Store

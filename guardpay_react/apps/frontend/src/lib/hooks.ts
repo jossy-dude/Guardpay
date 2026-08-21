@@ -63,7 +63,9 @@ export function useHouseImportMutation() {
         fee?: number | null
         aliases?: string[]
         months?: string[]
+        payments?: { month: string; amount?: number | null; note?: string }[]
         paid_day?: number | null
+        opening_balance?: number
       }[]
       default_fee: number
       calendar_mode: string
@@ -141,6 +143,28 @@ export function useTogglePayment() {
     onSettled: () => {
       // ONE refetch per toggle — keeps the server state in sync after commit
       qc.invalidateQueries({ queryKey: stateKeys.all })
+    },
+  })
+}
+
+export function useAddAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { house_id: number; alias: string }) => api.post('/aliases/add', payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: stateKeys.all }),
+    onError: (err) => {
+      toastError('Could not add alias', (err as Error).message)
+    },
+  })
+}
+
+export function useDeleteAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { id: number }) => api.post('/aliases/delete', payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: stateKeys.all }),
+    onError: (err) => {
+      toastError('Could not remove alias', (err as Error).message)
     },
   })
 }

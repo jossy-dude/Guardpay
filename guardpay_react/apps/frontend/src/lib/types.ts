@@ -12,6 +12,7 @@ export interface Household {
   updatedAt: string
   deletedAt: string | null
   avatar: string | null
+  openingBalance: number
 }
 
 export type PaymentStatus = 'ontime' | 'unpaid' | 'upcoming'
@@ -131,6 +132,7 @@ export interface ApiHousehold {
   updated_at: string
   deleted_at: string | null
   avatar: string | null
+  opening_balance: number
 }
 
 export interface ApiPayment {
