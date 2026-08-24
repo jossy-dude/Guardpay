@@ -21,6 +21,7 @@ import {
   ArrowUpDown,
   BellRing,
   CalendarDays,
+  CalendarRange,
   Check,
   Columns3,
   Filter as FilterIcon,
@@ -58,9 +59,11 @@ import { useSound } from '@/hooks/useSound'
 import { toastSuccess, toastError } from '@/components/toast/store'
 import { addMonths, calendarMonthLabel, calendarMonthShort, currentMonthKey, formatMoney, todayIso } from '@/lib/utils'
 import { cn } from '@/lib/cn'
+import { ecYearMonthKeys, monthKeyToEthiopian } from '@/lib/calendar'
+import { toggleCellKey } from '@/features/records/yearView'
 import type { Household, HouseStats, MonthStatus, Payment } from '@/lib/types'
 
-type ViewId = 'table' | 'board' | 'gallery' | 'list'
+type ViewId = 'table' | 'board' | 'gallery' | 'list' | 'year'
 type SortKey = 'houseNumber' | 'name' | 'status' | 'score' | 'tier' | 'streak' | 'fee'
 type ColumnKey = Exclude<SortKey, 'name'>
 
@@ -69,6 +72,7 @@ const VIEWS: { id: ViewId; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'board', label: 'Board', icon: SquareKanban },
   { id: 'gallery', label: 'Gallery', icon: Images },
   { id: 'list', label: 'List', icon: List },
+  { id: 'year', label: 'Year', icon: CalendarRange },
 ]
 
 interface Column {
@@ -117,7 +121,9 @@ function usePersistedView(): [ViewId, (v: ViewId) => void] {
   const [view, setView] = useState<ViewId>(() => {
     if (typeof window === 'undefined') return 'table'
     const saved = window.localStorage.getItem('records-view')
-    return saved === 'table' || saved === 'board' || saved === 'gallery' || saved === 'list' ? saved : 'table'
+    return saved === 'table' || saved === 'board' || saved === 'gallery' || saved === 'list' || saved === 'year'
+      ? saved
+      : 'table'
   })
   const setAndPersist = (v: ViewId) => {
     setView(v)
@@ -194,13 +200,18 @@ export function RecordsPage() {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Household | null>(null)
   const [deleting, setDeleting] = useState<Household | null>(null)
-  const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set())
+  const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set())
 
   const active = useMemo(() => houses.filter((h) => h.active), [houses])
   const stats = useAllHouseStats()
   const nowKey = currentMonthKey()
 
   const months = useMemo(() => {
+    if (settings.calendarMode === 'ethiopian') {
+      // Ethiopian year runs Meskerem (Sep) → Pagume; anchor the picker to the
+      // CURRENT EC year instead of a rolling Gregorian window.
+      return ecYearMonthKeys(monthKeyToEthiopian(nowKey).year)
+    }
     const arr: string[] = []
     let cur = addMonths(nowKey, -(MONTHS_BACK - 1))
     for (let i = 0; i < MONTHS_BACK; i++) {
@@ -209,7 +220,11 @@ export function RecordsPage() {
     }
     return arr.reverse()
     // keyed on the current month so the 12-month picker advances past midnight
-  }, [nowKey])
+  }, [nowKey, settings.calendarMode])
+
+  useEffect(() => {
+    if (!months.includes(month)) setMonth(months.includes(nowKey) ? nowKey : (months[months.length - 1] ?? month))
+  }, [months, month, nowKey])
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -271,12 +286,14 @@ export function RecordsPage() {
 
   const paymentFor = (house: Household) => payments.find((p) => p.houseId === house.id && p.monthKey === month)
 
-  const onToggle = (house: Household, currentlyPaid: boolean, note?: string) => {
-    setPendingToggles((prev) => new Set(prev).add(house.id))
+  const onToggle = (house: Household, currentlyPaid: boolean, note?: string, monthKeyOverride?: string) => {
+    const mk = monthKeyOverride ?? month
+    const pKey = toggleCellKey(house.id, mk)
+    setPendingToggles((prev) => new Set(prev).add(pKey))
     toggle.mutate(
       {
         house_id: house.id,
-        month_key: month,
+        month_key: mk,
         paid: !currentlyPaid,
         date: todayIso(),
         amount: house.fee,
@@ -286,7 +303,7 @@ export function RecordsPage() {
         onSettled: () => {
           setPendingToggles((prev) => {
             const next = new Set(prev)
-            next.delete(house.id)
+            next.delete(pKey)
             return next
           })
         },
@@ -328,7 +345,8 @@ export function RecordsPage() {
     query,
     paymentFor,
     paid,
-    isToggling: (id: number) => pendingToggles.has(id),
+    isToggling: (id: number) => pendingToggles.has(toggleCellKey(id, month)),
+    pendingKeys: pendingToggles,
     onToggle,
     onEdit: setEditing,
     onDelete: setDeleting,
@@ -791,7 +809,8 @@ interface ViewProps {
   paymentFor: (house: Household) => Payment | undefined
   paid: (house: Household) => boolean
   isToggling: (houseId: number) => boolean
-  onToggle: (house: Household, currentlyPaid: boolean) => void
+  pendingKeys: Set<string>
+  onToggle: (house: Household, currentlyPaid: boolean, note?: string, monthKey?: string) => void
   onEdit: (house: Household) => void
   onDelete: (house: Household) => void
   onRemind: (house: Household) => void
