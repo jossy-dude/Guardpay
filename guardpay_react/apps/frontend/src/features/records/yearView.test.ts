@@ -53,9 +53,13 @@ describe('resolveYearCell', () => {
     const r = resolveYearCell(house(), undefined, '2026-09', nowKey, undefined)
     expect(r.kind).toBe('future')
   })
-  it('preborn before house.createdMonth', () => {
+  it('preborn when no history entry exists for that month', () => {
     const r = resolveYearCell(house(), undefined, '2026-09', '2027-01', undefined)
     expect(r.kind).toBe('preborn') // history has no entry for unbuilt span
+  })
+  it('paid beats future when a payment exists beyond nowKey', () => {
+    const r = resolveYearCell(house(), undefined, '2027-01', nowKey, pay({ monthKey: '2027-01' }))
+    expect(r.kind).toBe('paid')
   })
 })
 
@@ -65,7 +69,8 @@ describe('yearColumnTotals', () => {
     const h1 = house()
     const h2 = house({ id: 2, fee: 3000 })
     const h3 = house({ id: 3, fee: 2000, createdMonth: '2026-01' }) // born after Meskerem
-    const rows = [h1, h2, h3]
+    const h4 = house({ id: 4, fee: 1000 }) // createdMonth '2025-09' but no history entry ⇒ still excluded
+    const rows = [h1, h2, h3, h4]
     const byHM = new Map<string, Payment>([
       [`1:${cols[0]!.monthKey}`, pay({ amount: 4000 })],
       [`2:${cols[0]!.monthKey}`, pay({ houseId: 2, amount: 3000 })],
@@ -76,7 +81,7 @@ describe('yearColumnTotals', () => {
     ])
     const t = yearColumnTotals(rows, stats, cols, byHM)
     expect(t.collected.get(cols[0]!.monthKey)).toBe(7000)
-    expect(t.expected.get(cols[0]!.monthKey)).toBe(7000) // both living houses counted; h3 excluded (no history entry)
+    expect(t.expected.get(cols[0]!.monthKey)).toBe(7000) // h4 excluded despite createdMonth '2025-09' ⇒ exclusion driven by statusForMonth, not createdMonth
   })
 })
 
