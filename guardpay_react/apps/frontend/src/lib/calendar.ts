@@ -109,3 +109,26 @@ export function ethMonthShort(monthKey: string, lang: MonthLanguage): string {
   const { month } = monthKeyToEthiopian(monthKey)
   return ethiopianMonthName(month, lang)
 }
+
+/** Number of days in an Ethiopian month (Pagume = 5, or 6 in leap years). */
+export function ethiopianMonthLength(year: number, month: number): number {
+  return month === 13 ? (isEthiopianLeapYear(year) ? 6 : 5) : 30
+}
+
+/** All 13 Gregorian month-keys covered by an Ethiopian year, in EC order
+ *  Meskerem..Pagume. Anchor = day 15, clamped to month length so Pagume
+ *  never overflows into the next year's Meskerem. */
+export function ecYearMonthKeys(ecYear: number): string[] {
+  const keys: string[] = []
+  for (let m = 1; m <= 13; m++) {
+    const g = ethiopianToGregorian(ecYear, m, Math.min(15, ethiopianMonthLength(ecYear, m)))
+    keys.push(`${g.year}-${String(g.month).padStart(2, '0')}`)
+  }
+  return keys
+}
+
+/** Ethiopian year containing today. */
+export function currentEthiopianYear(): number {
+  const now = new Date()
+  return gregorianToEthiopian(now.getFullYear(), now.getMonth() + 1, now.getDate()).year
+}
