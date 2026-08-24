@@ -59,8 +59,9 @@ import { useSound } from '@/hooks/useSound'
 import { toastSuccess, toastError } from '@/components/toast/store'
 import { addMonths, calendarMonthLabel, calendarMonthShort, currentMonthKey, formatMoney, todayIso } from '@/lib/utils'
 import { cn } from '@/lib/cn'
-import { ecYearMonthKeys, monthKeyToEthiopian } from '@/lib/calendar'
-import { toggleCellKey } from '@/features/records/yearView'
+import { currentEthiopianYear, ecYearMonthKeys, monthKeyToEthiopian } from '@/lib/calendar'
+import { buildYearColumns, resolveYearCell, toggleCellKey, yearColumnTotals } from '@/features/records/yearView'
+import type { YearColumn } from '@/features/records/yearView'
 import type { Household, HouseStats, MonthStatus, Payment } from '@/lib/types'
 
 type ViewId = 'table' | 'board' | 'gallery' | 'list' | 'year'
@@ -190,6 +191,26 @@ export function RecordsPage() {
 
   const [view, setView] = usePersistedView()
   const [visibleColumns, toggleColumn] = usePersistedColumns()
+  const [ecYear, setEcYear] = useState<number>(() => {
+    try {
+      const saved = window.localStorage.getItem('records-ec-year')
+      const n = saved ? Number(saved) : NaN
+      return Number.isFinite(n) && n >= 1 ? n : currentEthiopianYear()
+    } catch {
+      return currentEthiopianYear()
+    }
+  })
+  const navYear = (delta: number) =>
+    setEcYear((y) => {
+      const next = y + delta
+      try {
+        window.localStorage.setItem('records-ec-year', String(next))
+      } catch {
+        /* storage unavailable */
+      }
+      return next
+    })
+  const yearColumns = useMemo(() => buildYearColumns(ecYear), [ecYear])
   const [month, setMonth] = useState(currentMonthKey())
   const [query, setQuery] = useState('')
   const [aliasQuery, setAliasQuery] = useState('')
@@ -361,7 +382,17 @@ export function RecordsPage() {
       <SectionHead
         title="Records"
         kicker="Household × month · database"
-        right={<MonthPicker months={months} value={month} onChange={setMonth} />}
+        right={
+          view === 'year' ? (
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" className="h-9 px-2" onClick={() => navYear(-1)} aria-label="Previous year">‹</Button>
+              <span className="min-w-[92px] text-center text-sm font-semibold tabular-nums">{ecYear} ዓ.ም</span>
+              <Button size="sm" variant="outline" className="h-9 px-2" onClick={() => navYear(1)} aria-label="Next year" disabled={ecYear >= currentEthiopianYear()}>›</Button>
+            </div>
+          ) : (
+            <MonthPicker months={months} value={month} onChange={setMonth} />
+          )
+        }
       />
 
       {/* ---- Dataview controls bar (AnyType BlockDataviewControls) ---- */}
@@ -473,6 +504,20 @@ export function RecordsPage() {
           {view === 'board' && <BoardView {...viewProps} counts={counts} />}
           {view === 'gallery' && <GalleryView {...viewProps} />}
           {view === 'list' && <ListView {...viewProps} sort={sort} asc={asc} onSort={onSort} visible={visibleColumns} />}
+          {view === 'year' && (
+            <YearMatrixView
+              rows={rows}
+              stats={stats}
+              columns={yearColumns}
+              ecYear={ecYear}
+              onNavYear={navYear}
+              query={query}
+              payments={payments}
+              pendingKeys={pendingToggles}
+              onToggleCell={onToggle}
+              onAdd={() => setAdding(true)}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
 
@@ -1445,6 +1490,132 @@ function reconcileOrder(
     next[b.key] = [...kept, ...added]
   }
   return next
+}
+
+/* ---------------- Year matrix view (houses × 13 EC months) ---------------- */
+
+function YearMatrixView({
+  rows, stats, columns, ecYear, onNavYear, query, payments, pendingKeys, onToggleCell, onAdd,
+}: {
+  rows: Household[]
+  stats: Map<number, HouseStats | undefined>
+  columns: YearColumn[]
+  ecYear: number
+  onNavYear: (delta: number) => void
+  query: string
+  payments: Payment[]
+  pendingKeys: Set<string>
+  onToggleCell: (house: Household, currentlyPaid: boolean, note?: string, monthKey?: string) => void
+  onAdd: () => void
+}) {
+  const nowKey = currentMonthKey()
+  const byHouseMonth = useMemo(() => {
+    const m = new Map<string, Payment>()
+    for (const p of payments) m.set(`${p.houseId}:${p.monthKey}`, p)
+    return m
+  }, [payments])
+  const totals = useMemo(
+    () => yearColumnTotals(rows, stats, columns, byHouseMonth),
+    [rows, stats, columns, byHouseMonth],
+  )
+
+  return (
+    <div data-surface="keep-rect" className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2">
+        <button type="button" onClick={() => onNavYear(-1)} aria-label="Previous year"
+          className="rounded-md px-2 py-1 text-sm text-[var(--muted)] transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_6%,transparent)] hover:text-[var(--fg)]">‹</button>
+        <span className="text-[13px] font-semibold tracking-wide tabular-nums text-[var(--fg)]">{ecYear} ዓ.ም · መስከረም – ጳጉሜ</span>
+        <button type="button" onClick={() => onNavYear(1)} aria-label="Next year" disabled={ecYear >= currentEthiopianYear()}
+          className="rounded-md px-2 py-1 text-sm text-[var(--muted)] transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_6%,transparent)] hover:text-[var(--fg)] disabled:opacity-40 disabled:hover:bg-transparent">›</button>
+      </div>
+      <div className="max-h-[70vh] overflow-auto">
+        <table className="w-full border-collapse text-[14px] leading-[22px]">
+          <thead>
+            <tr className="text-left text-[11px] leading-[16px] text-[var(--muted)]">
+              <th scope="col" className="sticky left-0 top-0 z-20 min-w-[190px] border-b border-r border-[var(--border-strong)] bg-[var(--card)] px-3.5 py-2 font-normal">
+                ቤት
+              </th>
+              {columns.map((c) => (
+                <th key={c.monthIndex} scope="col" aria-sort={undefined}
+                  className={cn(
+                    'sticky top-0 z-10 whitespace-nowrap border-b border-r border-[var(--border-strong)] px-2 py-2 text-center font-normal',
+                    c.monthKey === nowKey && 'bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))]',
+                  )}
+                >
+                  <span className="block">{c.amharic}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((house) => {
+              const s = stats.get(house.id)
+              return (
+                <tr key={house.id} className="group transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]">
+                  <td className={cn(
+                    'sticky left-0 z-10 border-b border-r border-[var(--border)] bg-[var(--card)] px-3.5 py-2.5',
+                    'transition-colors group-hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]',
+                  )}>
+                    <span className="text-[13px] font-medium text-[var(--fg)]">{house.houseNumber}</span>
+                    <span className="ml-2 truncate text-[13px] text-[var(--muted)]">{house.name}</span>
+                  </td>
+                  {columns.map((c) => {
+                    const payment = byHouseMonth.get(`${house.id}:${c.monthKey}`)
+                    const cell = resolveYearCell(house, s, c.monthKey, nowKey, payment)
+                    const busy = pendingKeys.has(toggleCellKey(house.id, c.monthKey))
+                    if (cell.kind === 'paid') {
+                      const day = cell.payment?.paidDate?.slice(8, 10) ?? ''
+                      return (
+                        <td key={c.monthIndex} className="border-b border-r border-[var(--border)] p-0.5 text-center">
+                          <button type="button" disabled={busy}
+                            aria-label={`${house.houseNumber} ${c.amharic} ተከፍሏል`}
+                            onClick={() => onToggleCell(house, true, undefined, c.monthKey)}
+                            className="mx-auto flex h-8 w-full min-w-[52px] items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--success)_22%,transparent)] text-[12px] font-semibold tabular-nums text-[var(--fg)] transition-transform active:scale-95 disabled:opacity-50">
+                            {busy ? '…' : `✓${day ? ` ${day}` : ''}`}
+                          </button>
+                        </td>
+                      )
+                    }
+                    if (cell.kind === 'preborn' || cell.kind === 'future') {
+                      return (
+                        <td key={c.monthIndex} className="border-b border-r border-[var(--border)] p-0.5 text-center text-[var(--muted)] opacity-40">
+                          <span className="mx-auto flex h-8 w-full min-w-[52px] items-center justify-center rounded-md border border-dashed border-[var(--border)] text-[11px]">
+                            {cell.kind === 'future' ? '·' : '—'}
+                          </span>
+                        </td>
+                      )
+                    }
+                    return (
+                      <td key={c.monthIndex} className="border-b border-r border-[var(--border)] p-0.5 text-center">
+                        <button type="button" disabled={busy}
+                          aria-label={`${house.houseNumber} ${c.amharic} አልከፈለም`}
+                          onClick={() => onToggleCell(house, false, undefined, c.monthKey)}
+                          className="mx-auto flex h-8 w-full min-w-[52px] items-center justify-center rounded-md border border-[var(--border)] text-[12px] text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] active:scale-95 disabled:opacity-50">
+                          {busy ? '…' : ''}
+                        </button>
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+            {/* footer totals */}
+            <tr className="bg-[color-mix(in_srgb,var(--fg)_3%,var(--card))] text-[11px] tabular-nums text-[var(--muted)]">
+              <td className="sticky left-0 z-10 border-r border-t border-[var(--border-strong)] bg-[var(--card)] px-3.5 py-2 font-medium">ጠቅላላ</td>
+              {columns.map((c) => (
+                <td key={c.monthIndex} className="whitespace-nowrap border-r border-t border-[var(--border)] px-2 py-2 text-center" title={`collected ${totals.collected.get(c.monthKey) ?? 0} / expected ${totals.expected.get(c.monthKey) ?? 0}`}>
+                  {(totals.collected.get(c.monthKey) ?? 0) >= 1000
+                    ? `${Math.round((totals.collected.get(c.monthKey) ?? 0) / 1000)}k`
+                    : (totals.collected.get(c.monthKey) ?? 0)}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+        {rows.length === 0 && <RecordsEmptyState searching={query.trim() !== ''} onAdd={query ? undefined : onAdd} />}
+      </div>
+    </div>
+  )
 }
 
 /* ---------------- Gallery view (AnyType ViewGallery) ---------------- */
